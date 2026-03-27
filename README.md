@@ -1,1 +1,2 @@
-# WebApplication1
+## 座位预约管理系统
+# C#后端连接MQTT，微信小程序
