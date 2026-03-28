@@ -5,6 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using WebApplication1.Data;
 using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Models.DTOs.Responses;
@@ -199,17 +200,56 @@ public class AuthService : IAuthService
 
     private async Task<string?> GetOpenIdFromWechatAsync(string? code, string? openId)
     {
-        // 简化实现 - 实际项目需要调用微信API
-        if (!string.IsNullOrWhiteSpace(openId))
-        {
-            return openId.Trim();
-        }
-
+        // 如果有code，调用微信API获取真实的OpenId
         if (!string.IsNullOrWhiteSpace(code))
         {
-            // 模拟调用微信API获取OpenId
-            await Task.Delay(100); // 模拟网络延迟
-            return $"wechat_openid_{code}_{DateTime.Now.Ticks}";
+            try
+            {
+                var appId = _configuration["WeChatMiniProgram:AppId"];
+                var appSecret = _configuration["WeChatMiniProgram:AppSecret"];
+                var apiUrl = _configuration["WeChatMiniProgram:Jscode2SessionUrl"]
+                     ?? "https://api.weixin.qq.com/sns/jscode2session";
+
+                if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(appSecret))
+                {
+                    _logger.LogError("微信小程序配置不完整，请检查AppId和AppSecret");
+                    return null;
+                }
+
+                // 构建微信API请求URL
+                var requestUrl = $"{apiUrl}?appid={appId}&secret={appSecret}&js_code={code}&grant_type=authorization_code";
+
+                using var httpClient = new HttpClient();
+                var response = await httpClient.GetAsync(requestUrl);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var result = JsonSerializer.Deserialize<WeChatSessionResult>(content);
+
+                    if (result != null && result.ErrorCode == 0 && !string.IsNullOrWhiteSpace(result.OpenId))
+                    {
+                        _logger.LogInformation("微信API调用成功，获取到OpenId: {OpenId}", result.OpenId);
+                        return result.OpenId;
+                    }
+                    else
+                    {
+                        _logger.LogError("微信API返回错误: {ErrorCode} - {ErrorMessage}",
+                            result?.ErrorCode, result?.ErrorMessage);
+                        return null;
+                    }
+                }
+                else
+                {
+                    _logger.LogError("微信API请求失败: {StatusCode}", response.StatusCode);
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "调用微信API获取OpenId时发生异常");
+                return null;
+            }
         }
 
         return null;
