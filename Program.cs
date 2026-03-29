@@ -64,6 +64,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // 2. 注册自定义服务（依赖注入）
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();

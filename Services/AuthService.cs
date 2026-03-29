@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -18,14 +18,16 @@ public class AuthService : IAuthService
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IUserService _userService;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(AppDbContext context, IConfiguration configuration,
-        IUserService userService, ILogger<AuthService> logger)
+        IHttpClientFactory httpClientFactory, IUserService userService, ILogger<AuthService> logger)
     {
         _context = context;
         _configuration = configuration;
+        _httpClientFactory = httpClientFactory;
         _userService = userService;
         _logger = logger;
     }
@@ -216,10 +218,12 @@ public class AuthService : IAuthService
                     return null;
                 }
 
-                // 构建微信API请求URL
-                var requestUrl = $"{apiUrl}?appid={appId}&secret={appSecret}&js_code={code}&grant_type=authorization_code";
+                // 构建微信API请求URL（js_code 需编码）
+                var encodedCode = Uri.EscapeDataString(code);
+                var requestUrl =
+                    $"{apiUrl}?appid={Uri.EscapeDataString(appId)}&secret={Uri.EscapeDataString(appSecret)}&js_code={encodedCode}&grant_type=authorization_code";
 
-                using var httpClient = new HttpClient();
+                var httpClient = _httpClientFactory.CreateClient();
                 var response = await httpClient.GetAsync(requestUrl);
 
                 if (response.IsSuccessStatusCode)
@@ -251,6 +255,9 @@ public class AuthService : IAuthService
                 return null;
             }
         }
+
+        if (!string.IsNullOrWhiteSpace(openId))
+            return openId;
 
         return null;
     }
