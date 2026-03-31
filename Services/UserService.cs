@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using WebApplication1.Data;
 using WebApplication1.Models.Entities;
 using WebApplication1.Services.Interfaces;
-
+using WebApplication1.Models.DTOs.Responses;
 namespace WebApplication1.API.Services;
 
 public class UserService : IUserService
@@ -221,6 +221,76 @@ public class UserService : IUserService
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新用户角色失败 - UserId: {UserId}", userId);
+            throw;
+        }
+    }
+    public async Task<RegisterResult> RegisterAsync(RegisterRequest request)
+    {
+
+        // 管理员账号写死校验
+        if (request.OpenId == "admin" && request.NickName == "admin")
+        {
+            return new RegisterResult
+            {
+                Success = true,
+                Message = "管理员登录成功",
+                OpenId = "admin",
+                NickName = "admin",
+                UserId = 0 // 可自定义管理员ID
+            };
+        }
+
+        try
+        {
+            _logger.LogInformation("注册新用户 - OpenId: {OpenId}, NickName: {NickName}", request.OpenId, request.NickName);
+
+            // 验证输入
+            if (string.IsNullOrWhiteSpace(request.OpenId))
+                throw new ArgumentException("OpenId 不能为空", nameof(request.OpenId));
+
+            if (string.IsNullOrWhiteSpace(request.NickName))
+                throw new ArgumentException("昵称不能为空", nameof(request.NickName));
+
+            // 检查是否已存在
+            var existingUser = await GetUserByOpenIdAsync(request.OpenId);
+            if (existingUser != null)
+            {
+                _logger.LogWarning("用户 OpenId: {OpenId} 已存在", request.OpenId);
+                return new RegisterResult
+                {
+                    Success = false,
+                    Message = "用户已存在"
+                };
+            }
+
+            var user = new User
+            {
+                OpenId = request.OpenId.Trim(),
+                NickName = request.NickName.Trim(),
+                AvatarUrl = request.AvatarUrl,
+                Role = UserRole.Pending,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("用户注册成功 - ID: {UserId}, NickName: {NickName}", user.Id, user.NickName);
+            return new RegisterResult
+            {
+                Success = true,
+                UserId = user.Id,
+                Message = "注册成功"
+            };
+        }
+        catch (DbUpdateException dbEx)
+        {
+            _logger.LogError(dbEx, "数据库保存用户失败 - OpenId: {OpenId}", request.OpenId);
+            throw new InvalidOperationException("注册用户时发生数据库错误", dbEx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "注册用户失败 - OpenId: {OpenId}, NickName: {NickName}", request.OpenId, request.NickName);
             throw;
         }
     }
