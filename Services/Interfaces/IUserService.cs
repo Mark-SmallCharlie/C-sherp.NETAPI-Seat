@@ -1,7 +1,6 @@
 ﻿using WebApplication1.Models.Entities;
 using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Models.DTOs.Responses;
-
 namespace WebApplication1.Services.Interfaces
 {
     public interface IUserService
@@ -14,5 +13,6 @@ namespace WebApplication1.Services.Interfaces
         Task<User?> GetUserByIdAsync(int userId);
         //Task<User?> UpdateUserAsync(int userId, UserUpdateRequest request);
         Task<bool> UpdateUserRoleAsync(int userId, UserRole newRole);
+        Task<RegisterResult> RegisterAsync(RegisterRequest request);
     }
 }
