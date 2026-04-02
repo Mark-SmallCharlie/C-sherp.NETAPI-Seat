@@ -19,7 +19,7 @@ public static class DbInitializer
             var adminUser = new AdminUser
             {
                 Username = "admin",
-                PasswordHash = HashPassword("admin123"), // 默认密码
+                PasswordHash = HashPassword("admin"), // 默认密码
                 DisplayName = "系统管理员",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
