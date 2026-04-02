@@ -49,9 +49,12 @@ namespace WebApplication1.Services.Mqtt
                         var connected = await _mqttClientService.ConnectAsync();
                         if (connected)
                         {
-                            // 订阅所有设备的数据点主题
-                            // OneNET主题格式: $sys/{productId}/{deviceName}/dp/post/json/+
-                            var productId = _configuration["vCRg326c00"];
+                        // 订阅所有设备的数据点主题
+                        // OneNET主题格式: $sys/{productId}/{deviceName}/dp/post/json/+
+                        //$sys/{ID}/{name}/thing/property/post 上报主题
+                        //$sys/{ID}/{name}/thing/property/post/replay  上报回复主题
+                        //$sys/{ID}/{name}/thing/property/set
+                        var productId = _configuration["vCRg326c00"];
                             var topic = $"$sys/vCRg326c00/ESP8266/dp/post/json/+";
 
                             await _mqttClientService.SubscribeAsync(topic);
