@@ -12,7 +12,7 @@ using WebApplication1.Models.DTOs.Responses;
 using WebApplication1.Models.Entities;
 using WebApplication1.Services.Interfaces;
 
-namespace WebApplication1.API.Services;
+namespace WebApplication1.Services;
 
 public class AuthService : IAuthService
 {
