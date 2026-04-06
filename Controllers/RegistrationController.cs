@@ -8,7 +8,6 @@ using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Models.DTOs.Responses;
 using WebApplication1.Controllers;
 using WebApplication1.Services.Interfaces;
-using WebApplication1.Models.DTOs.Requests; // ÃÌº”¥À using ÷∏¡Ó
 
 namespace WebApplication1.Controllers;
 
@@ -32,6 +31,7 @@ public class RegistrationController : ControllerBase
         }
 
         var result = await _userService.RegisterAsync(request);
+        Console.WriteLine($"Register result: Success={result.Success}, Message={result.Message}, UserId={result.UserId}");
         if (!result.Success)
         {
             return BadRequest(result.Message);
