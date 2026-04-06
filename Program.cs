@@ -95,10 +95,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// 开发环境自动建库
+// 应用迁移（含 Users.PasswordHash 等结构变更）；首次运行会建库
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    //dbContext.Database.Migrate();
     dbContext.Database.EnsureCreated();
 }
 

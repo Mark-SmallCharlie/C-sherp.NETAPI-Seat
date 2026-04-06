@@ -3,7 +3,9 @@ using Microsoft.Extensions.Logging;
 using WebApplication1.Data;
 using WebApplication1.Models.Entities;
 using WebApplication1.Services.Interfaces;
+using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Models.DTOs.Responses;
+using WebApplication1.Security;
 namespace WebApplication1.API.Services;
 
 public class UserService : IUserService
@@ -226,20 +228,6 @@ public class UserService : IUserService
     }
     public async Task<RegisterResult> RegisterAsync(RegisterRequest request)
     {
-
-        // 管理员账号写死校验
-        if (request.OpenId == "admin" && request.NickName == "admin")
-        {
-            return new RegisterResult
-            {
-                Success = true,
-                Message = "管理员登录成功",
-                OpenId = "admin",
-                NickName = "admin",
-                UserId = 0 // 可自定义管理员ID
-            };
-        }
-
         try
         {
             _logger.LogInformation("注册新用户 - OpenId: {OpenId}, NickName: {NickName}", request.OpenId, request.NickName);
@@ -250,6 +238,16 @@ public class UserService : IUserService
 
             if (string.IsNullOrWhiteSpace(request.NickName))
                 throw new ArgumentException("昵称不能为空", nameof(request.NickName));
+
+            var hasPassword = !string.IsNullOrWhiteSpace(request.Password);
+            if (hasPassword && request.Password!.Length < 6)
+            {
+                return new RegisterResult
+                {
+                    Success = false,
+                    Message = "密码长度至少 6 位"
+                };
+            }
 
             // 检查是否已存在
             var existingUser = await GetUserByOpenIdAsync(request.OpenId);
@@ -263,12 +261,21 @@ public class UserService : IUserService
                 };
             }
 
+            string? passwordHash = null;
+            var role = UserRole.Pending;
+            if (hasPassword)
+            {
+                passwordHash = PasswordHasher.Hash(request.Password!.Trim());
+                role = UserRole.User;
+            }
+
             var user = new User
             {
                 OpenId = request.OpenId.Trim(),
                 NickName = request.NickName.Trim(),
                 AvatarUrl = request.AvatarUrl,
-                Role = UserRole.Pending,
+                PasswordHash = passwordHash,
+                Role = role,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -280,7 +287,9 @@ public class UserService : IUserService
             {
                 Success = true,
                 UserId = user.Id,
-                Message = "注册成功"
+                Message = "注册成功",
+                OpenId = user.OpenId,
+                NickName = user.NickName
             };
         }
         catch (DbUpdateException dbEx)

@@ -21,6 +21,10 @@ namespace WebApplication1.Models.Entities
         [MaxLength(500)]
         public string? AvatarUrl { get; set; } // 用户头像URL
 
+        /// <summary>账号密码注册时写入 SHA256 十六进制哈希；微信用户可为空。</summary>
+        [MaxLength(128)]
+        public string? PasswordHash { get; set; }
+
         // 导航属性 - 该用户的所有预约
         public virtual ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
     }

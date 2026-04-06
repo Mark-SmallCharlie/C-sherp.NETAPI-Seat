@@ -10,6 +10,7 @@ using WebApplication1.Data;
 using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Models.DTOs.Responses;
 using WebApplication1.Models.Entities;
+using WebApplication1.Security;
 using WebApplication1.Services.Interfaces;
 
 namespace WebApplication1.Services;
@@ -54,7 +55,7 @@ public class AuthService : IAuthService
                 return new LoginResponse { Success = false, Message = "用户名或密码错误" };
             }
 
-            if (!VerifyPassword(request.Password, adminUser.PasswordHash))
+            if (!PasswordHasher.Verify(request.Password, adminUser.PasswordHash))
             {
                 _logger.LogWarning("管理员登录失败 - 密码错误: {Username}", request.Username);
                 return new LoginResponse { Success = false, Message = "用户名或密码错误" };
@@ -150,6 +151,73 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "微信登录处理失败");
+            return new LoginResponse { Success = false, Message = "登录处理失败" };
+        }
+    }
+
+    /// <summary>
+    /// 普通用户：OpenId 与登录名一致，使用 Users.PasswordHash 校验（与注册接口写入的哈希一致）。
+    /// </summary>
+    public async Task<LoginResponse> UserPasswordLoginAsync(LoginRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return new LoginResponse { Success = false, Message = "用户名和密码不能为空" };
+            }
+
+            var username = request.Username.Trim();
+
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.OpenId == username);
+
+            if (user == null)
+            {
+                return new LoginResponse { Success = false, Message = "用户名或密码错误" };
+            }
+
+            if (string.IsNullOrEmpty(user.PasswordHash))
+            {
+                return new LoginResponse { Success = false, Message = "该账号未设置密码，请使用微信登录" };
+            }
+
+            if (!PasswordHasher.Verify(request.Password, user.PasswordHash))
+            {
+                return new LoginResponse { Success = false, Message = "用户名或密码错误" };
+            }
+
+            if (user.Role == UserRole.Pending)
+            {
+                return new LoginResponse { Success = false, Message = "账号待审核，请联系管理员" };
+            }
+
+            if (user.Role == UserRole.Rejected)
+            {
+                return new LoginResponse { Success = false, Message = "账号已被拒绝" };
+            }
+
+            var token = GenerateJwtToken(user.OpenId, user.Role.ToString(), user.NickName);
+
+            return new LoginResponse
+            {
+                Success = true,
+                Token = token,
+                Message = "登录成功",
+                UserInfo = new UserInfoResponse
+                {
+                    Id = user.Id,
+                    NickName = user.NickName,
+                    AvatarUrl = user.AvatarUrl,
+                    Role = user.Role.ToString(),
+                    DisplayName = user.NickName
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "用户密码登录失败 - 用户名: {Username}", request.Username);
             return new LoginResponse { Success = false, Message = "登录处理失败" };
         }
     }
@@ -260,23 +328,6 @@ public class AuthService : IAuthService
             return openId;
 
         return null;
-    }
-
-    private bool VerifyPassword(string password, string storedHash)
-    {
-        try
-        {
-            using var sha256 = SHA256.Create();
-            var hashedPassword = Convert.ToHexString(
-                sha256.ComputeHash(Encoding.UTF8.GetBytes(password)));
-
-            return string.Equals(hashedPassword, storedHash, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "密码验证失败");
-            return false;
-        }
     }
 
     public bool ValidateToken(string token)

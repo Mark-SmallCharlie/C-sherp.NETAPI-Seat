@@ -9,6 +9,9 @@
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:8.0-nanoserver-1809</ContainerBaseImage>
     <UserSecretsId>de1ce1b0-65a4-40dc-8dc9-3cdb66e60399</UserSecretsId>
+	<CetCompat>false</CetCompat>
+	<EnableCetCompat>false</EnableCetCompat>
+	<WindowsEnableCetCompat>false</WindowsEnableCetCompat>
   </PropertyGroup>
 
   <ItemGroup>
