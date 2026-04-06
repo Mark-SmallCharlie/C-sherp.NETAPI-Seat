@@ -18,7 +18,7 @@ namespace WebApplication1.Models.Entities
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        [MaxLength(500)]
+        [MaxLength(1000)]
         public string? AvatarUrl { get; set; } // 用户头像URL
 
         /// <summary>账号密码注册时写入 SHA256 十六进制哈希；微信用户可为空。</summary>
