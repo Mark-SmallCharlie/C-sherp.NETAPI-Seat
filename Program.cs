@@ -11,11 +11,17 @@ using WebApplication1.Models.Mqtt;
 using WebApplication1.Services;
 using WebApplication1.Services.Interfaces;
 using WebApplication1.Services.Mqtt;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // 基础服务
-builder.Services.AddControllers();
+// 替换原来的 AddControllers()
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    // 忽略 JSON 序列化时的对象循环引用
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
