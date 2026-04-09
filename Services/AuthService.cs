@@ -61,7 +61,7 @@ public class AuthService : IAuthService
                 return new LoginResponse { Success = false, Message = "用户名或密码错误" };
             }
 
-            var token = GenerateJwtToken(adminUser.Username, "Admin", adminUser.DisplayName);
+            var token = GenerateJwtToken(adminUser.Id.ToString(), "Admin", adminUser.DisplayName);
 
             _logger.LogInformation("管理员登录成功 - 用户名: {Username}", request.Username);
 
@@ -122,7 +122,7 @@ public class AuthService : IAuthService
 
             if (!requiresApproval)
             {
-                token = GenerateJwtToken(user.OpenId, user.Role.ToString(), user.NickName);
+                token = GenerateJwtToken(user.Id.ToString(), user.Role.ToString(), user.NickName);
                 userInfo = new UserInfoResponse
                 {
                     Id = user.Id,
@@ -198,7 +198,7 @@ public class AuthService : IAuthService
                 return new LoginResponse { Success = false, Message = "账号已被拒绝" };
             }
 
-            var token = GenerateJwtToken(user.OpenId, user.Role.ToString(), user.NickName);
+            var token = GenerateJwtToken(user.Id.ToString(), user.Role.ToString(), user.NickName);
 
             return new LoginResponse
             {
