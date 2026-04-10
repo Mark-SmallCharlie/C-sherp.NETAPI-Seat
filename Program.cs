@@ -26,14 +26,6 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 
-//// 添加MQTT配置
-//builder.Services.Configure<MqttOptions>(
-//    builder.Configuration.GetSection("Mqtt"));
-//// 注册MQTT相关服务
-//builder.Services.AddSingleton<IMqttClientService, MqttClientService>();
-//builder.Services.AddScoped<IMqttMessageHandler, MqttMessageHandler>();
-//builder.Services.AddSingleton<IDeviceStatusService, DeviceStatusService>();
-//builder.Services.AddHostedService<MqttBackgroundService>();
 
 // Add services to the container.
 // 1. 添加数据库上下文
@@ -65,12 +57,16 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // MQTT
-builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection("Mqtt"));
-builder.Services.AddSingleton<IMqttClientService, MqttClientService>();
-builder.Services.AddScoped<IMqttMessageHandler, MqttMessageHandler>();
-builder.Services.AddSingleton<IDeviceStatusService, DeviceStatusService>();
-builder.Services.AddHostedService<MqttBackgroundService>();
+//builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection("Mqtt"));
+////builder.Services.AddSingleton<IMqttClientService, MqttClientService>();
+//builder.Services.AddScoped<IMqttMessageHandler, MqttMessageHandler>();
+//builder.Services.AddSingleton<IDeviceStatusService, DeviceStatusService>();
+//builder.Services.AddHostedService<MqttBackgroundService>();
 
+// 2. 添加 HTTP 客户端的注册：
+builder.Services.AddHttpClient();
+// 3. 注册新的 HTTP 轮询服务：
+builder.Services.AddHostedService<WebApplication1.Services.OneNet.OneNetPollingService>();
 // 业务服务
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAuthService, AuthService>();
