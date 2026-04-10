@@ -65,7 +65,7 @@ namespace WebApplication1.Migrations
                             CreatedAt = new DateTime(2026, 4, 5, 14, 50, 25, 495, DateTimeKind.Utc).AddTicks(9928),
                             DisplayName = "系统管理员",
                             IsActive = true,
-                            PasswordHash = "240BE518FABD2724DDB6F04EEB1DA5967448D7E831C08C8FA822809F74C720A9",
+                            PasswordHash = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
                             Username = "admin"
                         });
                 });
