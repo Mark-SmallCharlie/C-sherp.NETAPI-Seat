@@ -29,7 +29,7 @@ namespace WebApplication1.Models.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow; // 创建时间
 
         // 导航属性 - 预约所属的用户
-        public virtual User User { get; set; } = new User();
+        public virtual User? User { get; set; }
     }
     public enum ReservationStatus
     {
