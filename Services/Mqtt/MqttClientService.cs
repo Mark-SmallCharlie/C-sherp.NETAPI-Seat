@@ -100,13 +100,15 @@ namespace WebApplication1.Services.Mqtt
         private string GenerateOneNetStudioToken(string productId, string deviceName, string accessKey)
         {
             var res = $"products/vCRg326c00/devices/ESP8266";
+            // 【修改后】使用传入的变量，实现动态鉴权
+            //var res = $"products/{productId}/devices/{deviceName}";
             var et = (DateTimeOffset.UtcNow.AddYears(10).ToUnixTimeSeconds()).ToString();
             var method = "sha1";
             var version = "2018-10-31";
 
             var signStr = $"{et}\n{method}\n{res}\n{version}";
-            var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(accessKey));
-            var sign = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(signStr)));
+            var hmac = new System.Security.Cryptography.HMACSHA1(System.Text.Encoding.UTF8.GetBytes(accessKey));
+            var sign = Convert.ToBase64String(hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(signStr)));
 
             return $"version={version}&res={res}&et={et}&method={method}&sign={sign}";
         }
