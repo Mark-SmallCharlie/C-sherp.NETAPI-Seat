@@ -60,7 +60,7 @@ builder.Services.AddAuthorization();
 //builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection("Mqtt"));
 ////builder.Services.AddSingleton<IMqttClientService, MqttClientService>();
 //builder.Services.AddScoped<IMqttMessageHandler, MqttMessageHandler>();
-//builder.Services.AddSingleton<IDeviceStatusService, DeviceStatusService>();
+builder.Services.AddSingleton<IDeviceStatusService, DeviceStatusService>();
 //builder.Services.AddHostedService<MqttBackgroundService>();
 
 // 2. 添加 HTTP 客户端的注册：
