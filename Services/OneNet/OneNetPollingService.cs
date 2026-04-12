@@ -114,7 +114,7 @@ namespace WebApplication1.Services.OneNet
                                 // 2. 更新该座位的占用状态
                                 await _deviceStatusService.UpdateDeviceStatusAsync(identifier, isOccupied);
 
-                                _logger.LogInformation("状态同步成功 - 标识符: {Id}, 座位号: {Seat}, 有人: {Occ}",
+                                _logger.LogInformation("状态同步成功 - 标识符: {Id}, 座位号: {Seat}, 座位状态: {Occ}",
                                     identifier, seatNumber, isOccupied);
                             }
                         }
