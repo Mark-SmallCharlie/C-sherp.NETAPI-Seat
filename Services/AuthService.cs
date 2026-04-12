@@ -1,30 +1,34 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using WebApplication1.Data;
 using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Models.DTOs.Responses;
 using WebApplication1.Models.Entities;
+using WebApplication1.Security;
 using WebApplication1.Services.Interfaces;
 
-namespace WebApplication1.API.Services;
+namespace WebApplication1.Services;
 
 public class AuthService : IAuthService
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IUserService _userService;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(AppDbContext context, IConfiguration configuration,
-        IUserService userService, ILogger<AuthService> logger)
+        IHttpClientFactory httpClientFactory, IUserService userService, ILogger<AuthService> logger)
     {
         _context = context;
         _configuration = configuration;
+        _httpClientFactory = httpClientFactory;
         _userService = userService;
         _logger = logger;
     }
@@ -51,13 +55,13 @@ public class AuthService : IAuthService
                 return new LoginResponse { Success = false, Message = "用户名或密码错误" };
             }
 
-            if (!VerifyPassword(request.Password, adminUser.PasswordHash))
+            if (!PasswordHasher.Verify(request.Password, adminUser.PasswordHash))
             {
                 _logger.LogWarning("管理员登录失败 - 密码错误: {Username}", request.Username);
                 return new LoginResponse { Success = false, Message = "用户名或密码错误" };
             }
 
-            var token = GenerateJwtToken(adminUser.Username, "Admin", adminUser.DisplayName);
+            var token = GenerateJwtToken(adminUser.Id.ToString(), "Admin", adminUser.DisplayName);
 
             _logger.LogInformation("管理员登录成功 - 用户名: {Username}", request.Username);
 
@@ -118,7 +122,7 @@ public class AuthService : IAuthService
 
             if (!requiresApproval)
             {
-                token = GenerateJwtToken(user.OpenId, user.Role.ToString(), user.NickName);
+                token = GenerateJwtToken(user.Id.ToString(), user.Role.ToString(), user.NickName);
                 userInfo = new UserInfoResponse
                 {
                     Id = user.Id,
@@ -147,6 +151,73 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "微信登录处理失败");
+            return new LoginResponse { Success = false, Message = "登录处理失败" };
+        }
+    }
+
+    /// <summary>
+    /// 普通用户：OpenId 与登录名一致，使用 Users.PasswordHash 校验（与注册接口写入的哈希一致）。
+    /// </summary>
+    public async Task<LoginResponse> UserPasswordLoginAsync(LoginRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return new LoginResponse { Success = false, Message = "用户名和密码不能为空" };
+            }
+
+            var username = request.Username.Trim();
+
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.OpenId == username);
+
+            if (user == null)
+            {
+                return new LoginResponse { Success = false, Message = "用户名或密码错误" };
+            }
+
+            if (string.IsNullOrEmpty(user.PasswordHash))
+            {
+                return new LoginResponse { Success = false, Message = "该账号未设置密码，请使用微信登录" };
+            }
+
+            if (!PasswordHasher.Verify(request.Password, user.PasswordHash))
+            {
+                return new LoginResponse { Success = false, Message = "用户名或密码错误" };
+            }
+
+            if (user.Role == UserRole.Pending)
+            {
+                return new LoginResponse { Success = false, Message = "账号待审核，请联系管理员" };
+            }
+
+            if (user.Role == UserRole.Rejected)
+            {
+                return new LoginResponse { Success = false, Message = "账号已被拒绝" };
+            }
+
+            var token = GenerateJwtToken(user.Id.ToString(), user.Role.ToString(), user.NickName);
+
+            return new LoginResponse
+            {
+                Success = true,
+                Token = token,
+                Message = "登录成功",
+                UserInfo = new UserInfoResponse
+                {
+                    Id = user.Id,
+                    NickName = user.NickName,
+                    AvatarUrl = user.AvatarUrl,
+                    Role = user.Role.ToString(),
+                    DisplayName = user.NickName
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "用户密码登录失败 - 用户名: {Username}", request.Username);
             return new LoginResponse { Success = false, Message = "登录处理失败" };
         }
     }
@@ -199,37 +270,64 @@ public class AuthService : IAuthService
 
     private async Task<string?> GetOpenIdFromWechatAsync(string? code, string? openId)
     {
-        // 简化实现 - 实际项目需要调用微信API
-        if (!string.IsNullOrWhiteSpace(openId))
-        {
-            return openId.Trim();
-        }
-
+        // 如果有code，调用微信API获取真实的OpenId
         if (!string.IsNullOrWhiteSpace(code))
         {
-            // 模拟调用微信API获取OpenId
-            await Task.Delay(100); // 模拟网络延迟
-            return $"wechat_openid_{code}_{DateTime.Now.Ticks}";
+            try
+            {
+                var appId = _configuration["WeChatMiniProgram:AppId"];
+                var appSecret = _configuration["WeChatMiniProgram:AppSecret"];
+                var apiUrl = _configuration["WeChatMiniProgram:Jscode2SessionUrl"]
+                     ?? "https://api.weixin.qq.com/sns/jscode2session";
+
+                if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(appSecret))
+                {
+                    _logger.LogError("微信小程序配置不完整，请检查AppId和AppSecret");
+                    return null;
+                }
+
+                // 构建微信API请求URL（js_code 需编码）
+                var encodedCode = Uri.EscapeDataString(code);
+                var requestUrl =
+                    $"{apiUrl}?appid={Uri.EscapeDataString(appId)}&secret={Uri.EscapeDataString(appSecret)}&js_code={encodedCode}&grant_type=authorization_code";
+
+                var httpClient = _httpClientFactory.CreateClient();
+                var response = await httpClient.GetAsync(requestUrl);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var result = JsonSerializer.Deserialize<WeChatSessionResult>(content);
+
+                    if (result != null && result.ErrorCode == 0 && !string.IsNullOrWhiteSpace(result.OpenId))
+                    {
+                        _logger.LogInformation("微信API调用成功，获取到OpenId: {OpenId}", result.OpenId);
+                        return result.OpenId;
+                    }
+                    else
+                    {
+                        _logger.LogError("微信API返回错误: {ErrorCode} - {ErrorMessage}",
+                            result?.ErrorCode, result?.ErrorMessage);
+                        return null;
+                    }
+                }
+                else
+                {
+                    _logger.LogError("微信API请求失败: {StatusCode}", response.StatusCode);
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "调用微信API获取OpenId时发生异常");
+                return null;
+            }
         }
+
+        if (!string.IsNullOrWhiteSpace(openId))
+            return openId;
 
         return null;
-    }
-
-    private bool VerifyPassword(string password, string storedHash)
-    {
-        try
-        {
-            using var sha256 = SHA256.Create();
-            var hashedPassword = Convert.ToHexString(
-                sha256.ComputeHash(Encoding.UTF8.GetBytes(password)));
-
-            return string.Equals(hashedPassword, storedHash, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "密码验证失败");
-            return false;
-        }
     }
 
     public bool ValidateToken(string token)

@@ -4,7 +4,7 @@ using WebApplication1.Models.Device;
 using WebApplication1.Controllers;
 using WebApplication1.Services.Interfaces;
 
-namespace WebApplication1.API.Controllers
+namespace WebApplication1.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

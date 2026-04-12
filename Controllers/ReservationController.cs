@@ -134,7 +134,7 @@ public class ReservationController : BaseController
     }
 
     [HttpGet("active-reservations")]
-    [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetActiveReservations()
     {
         try

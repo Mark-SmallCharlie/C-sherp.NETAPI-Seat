@@ -3,7 +3,9 @@ using Microsoft.Extensions.Logging;
 using WebApplication1.Data;
 using WebApplication1.Models.Entities;
 using WebApplication1.Services.Interfaces;
-
+using WebApplication1.Models.DTOs.Requests;
+using WebApplication1.Models.DTOs.Responses;
+using WebApplication1.Security;
 namespace WebApplication1.API.Services;
 
 public class UserService : IUserService
@@ -221,6 +223,83 @@ public class UserService : IUserService
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新用户角色失败 - UserId: {UserId}", userId);
+            throw;
+        }
+    }
+    public async Task<RegisterResult> RegisterAsync(RegisterRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("注册新用户 - OpenId: {OpenId}, NickName: {NickName}", request.OpenId, request.NickName);
+
+            // 验证输入
+            if (string.IsNullOrWhiteSpace(request.OpenId))
+                throw new ArgumentException("OpenId 不能为空", nameof(request.OpenId));
+
+            if (string.IsNullOrWhiteSpace(request.NickName))
+                throw new ArgumentException("昵称不能为空", nameof(request.NickName));
+
+            var hasPassword = !string.IsNullOrWhiteSpace(request.Password);
+            if (hasPassword && request.Password!.Length < 6)
+            {
+                return new RegisterResult
+                {
+                    Success = false,
+                    Message = "密码长度至少 6 位"
+                };
+            }
+
+            // 检查是否已存在
+            var existingUser = await GetUserByOpenIdAsync(request.OpenId);
+            if (existingUser != null)
+            {
+                _logger.LogWarning("用户 OpenId: {OpenId} 已存在", request.OpenId);
+                return new RegisterResult
+                {
+                    Success = false,
+                    Message = "用户已存在"
+                };
+            }
+
+            string? passwordHash = null;
+            var role = UserRole.Pending;
+            if (hasPassword)
+            {
+                passwordHash = PasswordHasher.Hash(request.Password!.Trim());
+                role = UserRole.User;
+            }
+
+            var user = new User
+            {
+                OpenId = request.OpenId.Trim(),
+                NickName = request.NickName.Trim(),
+                AvatarUrl = request.AvatarUrl,
+                PasswordHash = passwordHash,
+                Role = role,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("用户注册成功 - ID: {UserId}, NickName: {NickName}", user.Id, user.NickName);
+            return new RegisterResult
+            {
+                Success = true,
+                UserId = user.Id,
+                Message = "注册成功",
+                OpenId = user.OpenId,
+                NickName = user.NickName
+            };
+        }
+        catch (DbUpdateException dbEx)
+        {
+            _logger.LogError(dbEx, "数据库保存用户失败 - OpenId: {OpenId}", request.OpenId);
+            throw new InvalidOperationException("注册用户时发生数据库错误", dbEx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "注册用户失败 - OpenId: {OpenId}, NickName: {NickName}", request.OpenId, request.NickName);
             throw;
         }
     }

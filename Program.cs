@@ -7,46 +7,39 @@ using Microsoft.IdentityModel.Tokens;
 using WebApplication1.API.Services;
 using System.Text;
 using WebApplication1.Data;
-using WebApplication1.Models.Device;
 using WebApplication1.Models.Mqtt;
 using WebApplication1.Services;
 using WebApplication1.Services.Interfaces;
 using WebApplication1.Services.Mqtt;
-
-
-
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Ìí¼Ó·şÎñµ½ÈİÆ÷
-builder.Services.AddControllers();
+// åŸºç¡€æœåŠ¡
+// æ›¿æ¢åŸæ¥çš„ AddControllers()
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    // å¿½ç•¥ JSON åºåˆ—åŒ–æ—¶çš„å¯¹è±¡å¾ªç¯å¼•ç”¨
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 
-// Ìí¼ÓMQTTÅäÖÃ
-builder.Services.Configure<MqttOptions>(
-    builder.Configuration.GetSection("Mqtt"));
-// ×¢²áMQTTÏà¹Ø·şÎñ
-builder.Services.AddSingleton<IMqttClientService, MqttClientService>();
-builder.Services.AddScoped<IMqttMessageHandler, MqttMessageHandler>();
-builder.Services.AddSingleton<IDeviceStatusService, DeviceStatusService>();
-builder.Services.AddHostedService<MqttBackgroundService>();
-
 
 // Add services to the container.
-// 1. Ìí¼ÓÊı¾İ¿âÉÏÏÂÎÄ
+// 1. æ·»åŠ æ•°æ®åº“ä¸Šä¸‹æ–‡
+// æ•°æ®åº“
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-    
 
-
-// JWTÈÏÖ¤ÅäÖÃ
+// JWT è®¤è¯
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "YourSuperSecretKeyForJWTTokenGeneration12345";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "WebApplication1API";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "WebApplication1Client";
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
@@ -63,34 +56,35 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// 2. ×¢²á×Ô¶¨Òå·şÎñ£¨ÒÀÀµ×¢Èë£©
+// MQTT
+//builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection("Mqtt"));
+////builder.Services.AddSingleton<IMqttClientService, MqttClientService>();
+//builder.Services.AddScoped<IMqttMessageHandler, MqttMessageHandler>();
+builder.Services.AddSingleton<IDeviceStatusService, DeviceStatusService>();
+//builder.Services.AddHostedService<MqttBackgroundService>();
+
+// 2. æ·»åŠ  HTTP å®¢æˆ·ç«¯çš„æ³¨å†Œï¼š
+builder.Services.AddHttpClient();
+// 3. æ³¨å†Œæ–°çš„ HTTP è½®è¯¢æœåŠ¡ï¼š
+builder.Services.AddHostedService<WebApplication1.Services.OneNet.OneNetPollingService>();
+// ä¸šåŠ¡æœåŠ¡
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 
-
-
-// 3. Ìí¼Ó¿ØÖÆÆ÷ºÍAPIÌ½Ë÷Æ÷
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-// CORSÅäÖÃ£¨¿ª·¢»·¾³£©
+// CORSï¼ˆå¼€å‘è”è°ƒï¼‰
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-    {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+              .AllowAnyHeader());
 });
 
 var app = builder.Build();
 
-
-// 4. ÅäÖÃHTTPÇëÇó¹ÜµÀ
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -98,21 +92,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// 5. È·±£Êı¾İ¿â±»´´½¨£¨¿ª·¢»·¾³£©
+// åº”ç”¨è¿ç§»ï¼ˆå« Users.PasswordHash ç­‰ç»“æ„å˜æ›´ï¼‰ï¼›é¦–æ¬¡è¿è¡Œä¼šå»ºåº“
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    dbContext.Database.EnsureCreated(); // Èç¹ûÊı¾İ¿â²»´æÔÚ£¬Ôò´´½¨ËüºÍËùÓĞ±í
-                                        // ³õÊ¼»¯Ä¬ÈÏ¹ÜÀíÔ±ÕË»§
-                                        // await DbInitializer.InitializeAsync(dbContext);
+    //dbContext.Database.Migrate();
+    dbContext.Database.EnsureCreated();
 }
-
-app.UseCors("AllowAll");
-app.UseAuthorization();
-app.MapControllers();
 
 app.Run();

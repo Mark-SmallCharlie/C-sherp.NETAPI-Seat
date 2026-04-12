@@ -32,9 +32,11 @@ public class ReservationService : IReservationService
                 return null;
             }
 
-            if (request.StartTime < DateTime.Now)
+            // 【修改后】允许最多 5 分钟的误差
+            if (request.StartTime < DateTime.Now.AddMinutes(-5))
             {
-                _logger.LogWarning("预约时间无效 - 不能预约过去的时间");
+                _logger.LogWarning("预约时间无效 - 不能预约过去的时间 (请求时间: {StartTime}, 服务器当前时间: {Now})",
+                    request.StartTime, DateTime.Now);
                 return null;
             }
 
