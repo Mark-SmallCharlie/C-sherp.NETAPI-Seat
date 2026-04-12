@@ -1,0 +1,23 @@
+page {
+  --color-primary: #1a6b5c;
+  --color-primary-light: #e8f3f0;
+  --color-text: #1c1c1e;
+  --color-text-secondary: #6b6b70;
+  --color-border: #e5e7eb;
+  --color-surface: #ffffff;
+  --color-danger: #c62828;
+  --color-seat-other: #e65100;
+  --color-seat-other-light: #fff3e0;
+  --color-seat-in-use: #b71c1c;
+  --color-seat-in-use-light: #ffebee;
+  --space-xs: 12rpx;
+  --space-sm: 20rpx;
+  --space-md: 32rpx;
+  --space-lg: 48rpx;
+  --radius-btn: 16rpx;
+  --radius-card: 20rpx;
+  --font-title: 36rpx;
+  --font-body: 30rpx;
+  --font-small: 26rpx;
+  --shadow-card: 0 8rpx 28rpx rgba(26, 107, 92, 0.08);
+}

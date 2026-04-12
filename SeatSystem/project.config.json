@@ -1,0 +1,11 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "SeatSystem",
+  "description": "图书馆座位预约",
+  "appid": "touristappid",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "minified": true
+  }
+}
