@@ -9,6 +9,10 @@ using Microsoft.Extensions.Logging;
 using WebApplication1.Services.Interfaces;
 using System.Net.Http;
 
+
+/** OneNet HTTP 轮询服务 - 实现了 BackgroundService 接口，
+ * 定期通过 HTTP 请求 OneNet OpenAPI 获取设备的最新属性值，并更新座位状态。
+ */
 namespace WebApplication1.Services.OneNet
 {
     public class OneNetPollingService : BackgroundService
