@@ -1,4 +1,9 @@
-﻿using WebApplication1.Services.Interfaces;
+﻿/* MQTT 其功能已经取消运用，改为HTTP连接服务
+ * MQTT后台服务 - 实现了 BackgroundService 接口，
+ * 提供 MQTT 客户端的后台服务功能，包括连接、断开、订阅和消息处理。
+ * 使用 IMqttClientService 提供的 MQTT 客户端功能，并通过依赖注入获取配置和日志记录器。
+ */
+using WebApplication1.Services.Interfaces;
 
 
 namespace WebApplication1.Services.Mqtt

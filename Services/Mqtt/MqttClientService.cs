@@ -1,4 +1,9 @@
-﻿
+﻿/* MQTT 其功能已经取消运用，改为HTTP连接服务
+ * //MqttClientService - 实现了 IMqttClientService 接口，
+ * 提供 MQTT 客户端功能，包括连接、断开、订阅和发布消息。
+ * 使用 MQTTnet 库实现 MQTT 功能，并通过依赖注入获取配置和日志记录器。
+ * 包含事件处理程序来处理连接状态和接收消息。鉴权函数生成 OneNet Studio 的鉴权 Token。
+ */
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MQTTnet;
@@ -96,7 +101,7 @@ namespace WebApplication1.Services.Mqtt
         }
 
 
-
+        //鉴权函数，生成OneNet Studio的鉴权Token
         private string GenerateOneNetStudioToken(string productId, string deviceName, string accessKey)
         {
             var res = $"products/vCRg326c00/devices/ESP8266";

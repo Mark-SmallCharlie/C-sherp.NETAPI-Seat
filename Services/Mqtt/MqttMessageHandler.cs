@@ -1,4 +1,8 @@
-﻿using WebApplication1.Models.Device;
+﻿/* MQTT 其功能已经取消运用，改为HTTP连接服务
+ * MQTT消息处理器在MQTT客户端接收到消息时被调用，负责解析消息内容并更新设备状态。
+ * 
+ */
+using WebApplication1.Models.Device;
 using WebApplication1.Models.Mqtt;
 using WebApplication1.Services.Interfaces;
 using System.Text.Json;
