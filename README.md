@@ -8,13 +8,7 @@ Master --更新 4.11：
  * Program.cs中注释掉MQTT连接服务的相关代码，启用HTTP轮询设备状态服务。
  * OneNET采用固定Token进行认证。
 --------
-
-<p align="center"> 
 # 智慧座位预约系统后端
-</p>
-<center>
-# 智慧座位预约系统后端
-</center>
 
 ## 1.Controllers
 
