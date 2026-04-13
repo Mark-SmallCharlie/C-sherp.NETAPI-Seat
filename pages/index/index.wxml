@@ -1,0 +1,58 @@
+<view class="page">
+  <view class="header">
+    <view class="welcome">
+      <text class="name">{{displayName}}</text>
+      <text wx:if="{{isAdmin}}" class="badge">管理员</text>
+    </view>
+    <view wx:if="{{!isAdmin}}" class="tip">每位用户仅能预约1个座位。空闲可预约；本人预约为绿色；他人已预约为橙色；有人在使用为红色。我的座位可点「开始使用/结束使用」。</view>
+    <view wx:else class="tip">管理员：点击空座可预约（可同时占多个）；点击任一已占座位可立即释放（含他人预约与使用中）。座位卡上会显示预约人/使用人。</view>
+
+    <view wx:if="{{isAdmin}}" class="util-card">
+      <view class="util-title">座位利用率</view>
+      <view class="util-row">
+        <text class="util-pct">{{utilizationPercent}}%</text>
+        <text class="util-sub">已占用 {{usedSeats}} / {{totalSeats}}</text>
+      </view>
+      <view class="util-track">
+        <view class="util-fill" style="width: {{utilizationPercent}}%;" />
+      </view>
+    </view>
+
+    <button class="logout" size="mini" plain bindtap="onLogout">退出登录</button>
+  </view>
+
+  <view class="stage">
+    <text class="stage-label">阅览区</text>
+    <view class="seat-grid">
+      <view
+        wx:for="{{seats}}"
+        wx:key="id"
+        class="seat {{item.statusClass}}"
+        data-index="{{index}}"
+        bindtap="onSeatTap"
+      >
+        <view class="seat-id">{{item.id}}</view>
+        <view class="seat-state">{{item.stateText}}</view>
+        <view
+          wx:if="{{item.showStartUse}}"
+          class="seat-link action-start"
+          data-index="{{index}}"
+          catchtap="onStartUse"
+        >开始使用</view>
+        <view
+          wx:if="{{item.showEndUse}}"
+          class="seat-link action-end"
+          data-index="{{index}}"
+          catchtap="onEndUse"
+        >结束使用</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{toastVisible}}" class="msg-toast">
+    <view class="msg-toast-inner">
+      <view wx:if="{{toastIcon === 'cross'}}" class="msg-toast-cross">×</view>
+      <view class="msg-toast-text">{{toastMsg}}</view>
+    </view>
+  </view>
+</view>

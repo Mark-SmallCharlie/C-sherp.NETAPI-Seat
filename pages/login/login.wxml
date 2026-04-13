@@ -1,0 +1,80 @@
+<view class="page">
+  <view class="hero">
+    <text class="hero-title">图书馆座位预约</text>
+    <text class="hero-sub">登录后继续</text>
+  </view>
+
+  <block wx:if="{{!showRegister}}">
+    <view class="card">
+      <view class="field">
+        <text class="label">用户名</text>
+        <input
+          class="input"
+          type="text"
+          placeholder="请输入用户名"
+          value="{{username}}"
+          bindinput="onUsernameInput"
+        />
+      </view>
+      <view class="field">
+        <text class="label">密码</text>
+        <input
+          class="input"
+          password
+          placeholder="请输入密码"
+          value="{{password}}"
+          bindinput="onPasswordInput"
+        />
+      </view>
+      <button class="btn primary" bindtap="onLogin">登录</button>
+      <button class="btn ghost" bindtap="onToggleRegister">注册账号</button>
+      <view class="divider">
+        <view class="divider-line" />
+        <text class="divider-text">或</text>
+        <view class="divider-line" />
+      </view>
+      <button class="btn wechat" bindtap="onWechatLogin">
+        <text class="wechat-icon">微信</text>
+        <text>一键登录</text>
+      </button>
+      <view class="hint">微信登录需服务端用 code 换取 openid；此处为演示流程，本地直接放行。</view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="card">
+      <view class="field">
+        <text class="label">用户名</text>
+        <input
+          class="input"
+          type="text"
+          placeholder="设置用户名"
+          value="{{regUsername}}"
+          bindinput="onRegUsernameInput"
+        />
+      </view>
+      <view class="field">
+        <text class="label">密码</text>
+        <input
+          class="input"
+          password
+          placeholder="设置密码"
+          value="{{regPassword}}"
+          bindinput="onRegPasswordInput"
+        />
+      </view>
+      <view class="field">
+        <text class="label">确认密码</text>
+        <input
+          class="input"
+          password
+          placeholder="再次输入密码"
+          value="{{regPassword2}}"
+          bindinput="onRegPassword2Input"
+        />
+      </view>
+      <button class="btn primary" bindtap="onRegister">完成注册</button>
+      <button class="btn ghost" bindtap="onToggleRegister">返回登录</button>
+    </view>
+  </block>
+</view>
