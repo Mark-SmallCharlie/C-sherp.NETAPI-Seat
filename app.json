@@ -1,0 +1,14 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/index/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#1a6b5c",
+    "navigationBarTitleText": "座位预约",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f4f6f5"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
