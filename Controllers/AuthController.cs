@@ -5,7 +5,11 @@ using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Services.Interfaces;
 
 namespace WebApplication1.Controllers;
-
+/**AuthController 负责处理用户认证相关的请求，
+// 包括管理员登录、微信登录、Token 验证等。它依赖于 IAuthService 来执行具体的认证逻辑，并使用 ILogger 记录重要事件和异常。
+// 控制器提供了统一的登录接口，简化了前端调用，同时也提供了专门的管理员登录接口和微信登录接口，
+   以满足不同场景的需求。Token 验证接口则确保了用户会话的安全性和有效性。
+ */ 
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : BaseController

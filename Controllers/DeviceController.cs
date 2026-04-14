@@ -4,6 +4,14 @@ using WebApplication1.Models.Device;
 using WebApplication1.Controllers;
 using WebApplication1.Services.Interfaces;
 
+
+/**
+ * DeviceController 负责处理设备相关的请求，
+ * 包括获取设备状态、座位占用状态以及设备映射的设置和删除。
+ * 它依赖于 IDeviceStatusService 来执行具体的设备操作逻辑，并使用 ILogger 记录重要事件和异常。
+ * 控制器提供了统一的设备状态接口，简化了前端调用，同时也提供了专门的管理员接口，
+ * 以满足不同场景的需求。
+ */
 namespace WebApplication1.Controllers
 {
     [ApiController]

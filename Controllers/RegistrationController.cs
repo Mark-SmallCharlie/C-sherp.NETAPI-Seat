@@ -1,5 +1,4 @@
-//此类做为微信小程序注册类，但存在RegisterRequest命名空间未找到的错误，故暂时注释掉
-
+//此类做为微信小程序注册类,负责处理用户注册请求，调用用户服务进行注册逻辑处理，并返回相应的结果。
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
