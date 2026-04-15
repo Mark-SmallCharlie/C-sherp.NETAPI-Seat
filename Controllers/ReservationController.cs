@@ -5,7 +5,14 @@ using Microsoft.Extensions.Logging;
 using WebApplication1.Controllers;  
 using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Services.Interfaces;
-
+/**
+  ReservationController是一个ASP.NET Core Web API控制器，
+负责处理与预约相关的HTTP请求。它提供了创建预约、取消预约、获取用户预约列表、
+获取所有预约列表、获取活跃预约列表以及检查座位冲突等功能。
+该控制器使用依赖注入来获取预约服务和日志记录器，
+并通过授权属性确保只有认证用户才能访问这些端点。
+每个方法都包含错误处理和日志记录，以便更好地跟踪操作和调试问题。
+ */
 namespace WebApplication1.Controllers;
 
 [ApiController]

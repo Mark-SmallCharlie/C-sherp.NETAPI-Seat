@@ -7,7 +7,13 @@ using WebApplication1.Models.Entities;
 using WebApplication1.Services.Interfaces;
 using WebApplication1.Services;
 using WebApplication1.Models.DTOs;
-
+/**
+ * UserController是一个ASP.NET Core Web API控制器，
+ * 负责处理与用户相关的HTTP请求。它提供了获取用户资料、获取待审核用户列表、
+ * 获取所有用户列表、审核用户以及更新用户角色等功能。
+ * 该控制器使用依赖注入来获取用户服务和日志记录器，并通过授权属性确保只有认证用户才能访问这些端点。
+ * 每个方法都包含错误处理和日志记录，以便更好地跟踪操作和调试问题。
+ */
 
 namespace WebApplication1.Controllers;
 
