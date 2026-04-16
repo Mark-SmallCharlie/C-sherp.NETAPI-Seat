@@ -7,7 +7,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebApplication1.Data;
 
 #nullable disable
-
+/***
+ ModelSnapshot类是Entity Framework Core用于存储数据库模型快照的类。
+它记录了当前数据库模型的状态，以便在生成新的Migration时进行比较。
+此类用于跟踪数据库模式的变化。
+ */
 namespace WebApplication1.Migrations
 {
     [DbContext(typeof(AppDbContext))]
