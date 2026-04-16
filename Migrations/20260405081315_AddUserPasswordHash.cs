@@ -2,7 +2,12 @@
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
-
+/**
+ Migration类是Entity Framework Core用于管理数据库模式更改的类。
+每当你对数据模型进行更改（例如添加新属性、修改现有属性等）时，
+EF Core会生成一个新的Migration类来描述这些更改。
+此类生成以下数据库表：AdminUsers、SeatStatusHistories、Users和Reservations，并在AdminUsers表中插入一个默认管理员账户。
+ */
 namespace WebApplication1.Migrations
 {
     /// <inheritdoc />
