@@ -1,5 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;    
 using WebApplication1.Models.Entities;
+/**
+ *AppDbContext是应用程序的数据库上下文类，负责管理与数据库的连接和操作。
+ *它继承自Entity Framework Core的DbContext类，并定义了应用程序中使用的实体集合（DbSet）。
+ *在OnModelCreating方法中，可以对模型进行额外的配置，例如设置索引、添加种子数据等。
+ */
 namespace WebApplication1.Data
 {
     public class AppDbContext : DbContext
