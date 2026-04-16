@@ -5,7 +5,11 @@ using WebApplication1.Data;
 using WebApplication1.Models.Entities;
 
 namespace WebApplication1.Data;
-
+/**
+ DbInitializer类负责初始化数据库，确保数据库已创建，
+并在没有管理员账户的情况下添加一个默认管理员账户。
+它还包含一个HashPassword方法，用于将密码进行哈希处理，以提高安全性。
+ */
 public static class DbInitializer
 {
     public static async Task InitializeAsync(AppDbContext context)
