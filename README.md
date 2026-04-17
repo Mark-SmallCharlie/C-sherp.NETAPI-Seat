@@ -1,5 +1,10 @@
 # 更新：
 
+Master --更新 4.15：
+
+  * 修复且完善了 `OneNetPollingService` 中 HTTP 轮询服务生成鉴权 Token 的加密转换逻辑（解决 `byte[]` 无法转换为 `char[]` 的错误），支持动态生成基于 HMACSHA1 的合法签名 Token。
+  * 更新该 README.md 文档，补充了关于 `OneNetPollingService` 服务层的相关描述。
+
 Master --更新 4.13：
 
   * 添加Mqtt类的头部注释，取消掉Mqtt服务但保留mqtt相关类
@@ -34,8 +39,10 @@ Master --更新 4.11：
 - OneNet连接配置
 ## 4.Services
 ### Interface接口
+### OneNet
+- `OneNetPollingService`：HTTP 设备状态轮询服务，通过动态生成专属鉴权 Token 轮询拉取 OneNet 平台的设备最新属性数据，并同步更新后台的座位状态。
 ### Mqtt  
-- 连接服务控制服务报错重新连服务
+- 连接服务控制服务报错重新连服务（现已停用并替换为 HTTP 轮询服务，保留相关类主要用作参考）
 ### 其他为微信小程序服务
 ## 5.Program.cs
 ### 项目启动main函数
