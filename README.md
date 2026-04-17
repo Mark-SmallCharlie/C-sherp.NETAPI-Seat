@@ -30,11 +30,14 @@ Master --更新 4.11：
 
 ### Mqtt
 
+- 更新：取消MQTT连接，取代的是HTTP连接
 - MQTT连接配置  
 - OneNet连接配置
+
 ## 4.Services
 ### Interface接口
-### Mqtt  
+### Mqtt
+### 新增加ONENETHTTP连接类
 - 连接服务控制服务报错重新连服务
 ### 其他为微信小程序服务
 ## 5.Program.cs
