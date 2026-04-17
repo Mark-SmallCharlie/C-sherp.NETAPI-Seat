@@ -35,8 +35,10 @@ Master --更新 4.11：
 
 ### Mqtt
 
+- 更新：取消MQTT连接，取代的是HTTP连接
 - MQTT连接配置  
 - OneNet连接配置
+
 ## 4.Services
 ### Interface接口
 ### OneNet
