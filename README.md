@@ -24,6 +24,12 @@ Master --更新 4.11：
 ## 2.Data
 
 ### 读取连接数据库
+### 创建数据库的表
+## 2.5Migrations
+### 创建表的属性
+- Admin管理员表
+- 座位历史表
+- 用户账号密码表
 
 ## 3.Models
 
@@ -33,6 +39,8 @@ Master --更新 4.11：
 
 ### Entites
 
+- 创建数据库表里键属性用于调用
+
 ### Mqtt
 
 - 更新：取消MQTT连接，取代的是HTTP连接
@@ -41,16 +49,26 @@ Master --更新 4.11：
 
 ## 4.Services
 ### Interface接口
+
 ### OneNet
 - `OneNetPollingService`：HTTP 设备状态轮询服务，通过动态生成专属鉴权 Token 轮询拉取 OneNet 平台的设备最新属性数据，并同步更新后台的座位状态。
-### Mqtt  
-- 连接服务控制服务报错重新连服务（现已停用并替换为 HTTP 轮询服务，保留相关类主要用作参考）
-### 其他为微信小程序服务
-## 5.Program.cs
-### 项目启动main函数
-## 6.appsetings.json
-### json配置文件
 
+### Mqtt
+
+- 连接服务控制服务报错重新连服务（现已停用并替换为 HTTP 轮询服务，保留相关类主要用作参考）
+
+### 其他为微信小程序服务
+
+## 5.Program.cs
+
+### 项目启动main函数
+
+## 6.appsetings.json
+
+### json配置文件
+-----
+
+## 1.Controllers
 
 以下是对代码库中`Controllers`文件夹下每个控制器类的详细介绍，包含类的功能、核心特性、关键方法及设计特点：
 ### 1. `BaseController`（基础控制器）
@@ -466,10 +484,12 @@ Master --更新 4.11：
 - **枚举 `ReservationStatus`**：
   - `Active`：活跃/有效
   - `Completed`：已完成
-  - `Cancelled`：用户取消  
+  - `Cancelled`：用户取消
   - `ForceCancelled`：管理员强制取消
 
 以下是对该`Services`文件夹中各类文件（及子目录）的功能定位与核心职责介绍（基于常见业务系统的服务层设计逻辑，结合文件名语义推导）：
+
+## 2.Service
 
 ### 1. StatisticsService.cs
 **核心职责**：数据统计分析相关的业务逻辑封装。
