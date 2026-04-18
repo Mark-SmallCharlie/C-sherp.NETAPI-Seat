@@ -31,7 +31,13 @@ Master --更新 4.11：
 - 座位历史表
 - 用户账号密码表
 
-## 3.Models
+## 3.Migrations
+
+* AddUserPasswordHash.cs
+* AddUDbcontextMoodelSnapshot.cs
+* ExtendAvatarUrlLength.cs
+
+## 4.Models
 
 ### Device
 
@@ -47,7 +53,7 @@ Master --更新 4.11：
 - MQTT连接配置  
 - OneNet连接配置
 
-## 4.Services
+## 5.Services
 ### Interface接口
 
 ### OneNet
@@ -59,11 +65,11 @@ Master --更新 4.11：
 
 ### 其他为微信小程序服务
 
-## 5.Program.cs
+## 6.Program.cs
 
 ### 项目启动main函数
 
-## 6.appsetings.json
+## 7.appsetings.json
 
 ### json配置文件
 -----
