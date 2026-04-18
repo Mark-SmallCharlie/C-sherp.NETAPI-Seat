@@ -25,6 +25,7 @@ Master --更新 4.11：
 
 ### 读取连接数据库
 ### 创建数据库的表
+
 ## 2.5Migrations
 ### 创建表的属性
 - Admin管理员表
@@ -72,6 +73,14 @@ Master --更新 4.11：
 ## 7.appsetings.json
 
 ### json配置文件
+
+## 8.Properties
+* lauchSettings.json
+* serviceDependencies.json
+* serviceDependenices.local.json
+
+## 9.补充哈希值加密类
+* PasswordHasher.cs
 -----
 
 ## 1.Controllers
