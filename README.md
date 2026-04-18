@@ -26,12 +26,6 @@ Master --更新 4.11：
 ### 读取连接数据库
 ### 创建数据库的表
 
-## 2.5Migrations
-### 创建表的属性
-- Admin管理员表
-- 座位历史表
-- 用户账号密码表
-
 ## 3.Migrations
 
 * AddUserPasswordHash.cs
@@ -64,23 +58,30 @@ Master --更新 4.11：
 
 - 连接服务控制服务报错重新连服务（现已停用并替换为 HTTP 轮询服务，保留相关类主要用作参考）
 
-### 其他为微信小程序服务
+### 微信小程序服务
 
 ## 6.Program.cs
 
 ### 项目启动main函数
 
-## 7.appsetings.json
+## 7.Properties
 
 ### json配置文件
 
-## 8.Properties
 * lauchSettings.json
 * serviceDependencies.json
 * serviceDependenices.local.json
 
-## 9.补充哈希值加密类
+## 8.补充哈希值加密类
 * PasswordHasher.cs
+
+## 9.pages(微信小程序)
+### index
+### login
+
+## 10.WeChatApp
+* .gitkeep
+* app.js
 -----
 
 ## 1.Controllers
@@ -259,6 +260,8 @@ Master --更新 4.11：
 4. **解耦**：依赖服务接口（如`IUserService`/`IReservationService`），而非具体实现，便于测试和扩展。
 5. **业务适配**：贴合“预约系统”核心场景（用户审核、座位预约、设备管理、统计分析），覆盖C端（用户）和B端（管理员）需求。
 
+## 2.Data
+
 ### 1. AppDbContext 类（Data/AppDbContext.cs）
 `AppDbContext` 是基于 EF Core（Entity Framework Core）的数据库上下文类，是应用程序与数据库交互的核心入口，负责映射实体与数据库表、配置模型规则、管理数据连接等。
 
@@ -298,6 +301,8 @@ Master --更新 4.11：
 - 密码哈希仅为演示：SHA256 是不可逆哈希，但无“盐值”（Salt），生产环境需搭配盐值或使用 `PasswordHasher<T>` 等专用工具。
 
 以下是对该代码库中各文件夹下类的详细介绍，按文件路径分类说明：
+
+## 4.Modles
 
 ### 一、Models/DTOs/Responses（响应类DTO）
 该目录下的类主要用于封装接口返回给前端的响应数据，标准化返回格式。
@@ -504,7 +509,7 @@ Master --更新 4.11：
 
 以下是对该`Services`文件夹中各类文件（及子目录）的功能定位与核心职责介绍（基于常见业务系统的服务层设计逻辑，结合文件名语义推导）：
 
-## 2.Service
+## 5.Service
 
 ### 1. StatisticsService.cs
 **核心职责**：数据统计分析相关的业务逻辑封装。
@@ -564,3 +569,23 @@ Master --更新 4.11：
 
 ### 补充说明
 以上是基于“服务层（Service）”通用设计逻辑的推导，实际功能需结合代码实现确认，但核心职责与文件名强关联；这类服务层通常会依赖数据访问层（如Repository）、第三方SDK（如MQTT客户端、短信服务），并向上为控制器（Controller）/API层提供业务逻辑支撑。
+
+## 6.Program.cs
+**核心职责**： 项目主函数，负责调用注册所有应用服务，调用函数
+-所需要的注册服务：（待添加）
+ -
+ -
+ -
+
+## 7.Properties
+
+## 8.补充哈希值加密类
+
+## 9.pages
+### index
+
+### login
+
+## 10.WeChatApp
+* .gitkeep
+* .app.js
