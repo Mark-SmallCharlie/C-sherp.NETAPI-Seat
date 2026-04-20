@@ -1,6 +1,8 @@
 # 更新：
 Master --更新 4.19：
+
   * 更新Readme.md文档
+
 Master --更新 4.15：
 
   * 修复且完善了 `OneNetPollingService` 中 HTTP 轮询服务生成鉴权 Token 的加密转换逻辑（解决 `byte[]` 无法转换为 `char[]` 的错误），支持动态生成基于 HMACSHA1 的合法签名 Token。
