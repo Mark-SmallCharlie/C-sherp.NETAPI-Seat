@@ -1,4 +1,6 @@
-﻿namespace WebApplication1.Models.Device
+﻿// 这是一个设备状态模型，包含设备ID、座位映射、占用状态、最后更新时间以及其他可选数据。
+// 还定义了一个设备与座位的映射配置类，可以用于存储设备与座位之间的关系。
+namespace WebApplication1.Models.Device
 {
     public class DeviceStatus
     {
