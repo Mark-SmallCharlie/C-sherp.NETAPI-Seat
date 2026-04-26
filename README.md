@@ -77,10 +77,16 @@ dotnet run
 
 ### 控制器
 
+ - Auth、Base、Device、预约、注册等控制器
+ - User、天气信息控制器
+
 ## 2.Data
 
 ### 读取连接数据库
+ - Dblinitializer
+
 ### 创建数据库的表
+ - AppDbContext 
 
 ## 3.Migrations
 
