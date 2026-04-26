@@ -1,4 +1,8 @@
 ﻿namespace WebApplication1.Models.Mqtt
+
+/**
+ * MqttOptions类定义了MQTT连接的配置选项，包括服务器地址、端口、客户端ID、用户名、密码、重连延迟时间、产品ID、设备名称、AccessKey以及订阅的主题列表等属性。
+ */
 {
     public class MqttOptions
     {
