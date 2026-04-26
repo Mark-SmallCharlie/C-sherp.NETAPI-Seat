@@ -1,4 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
+
+/**
+ * User实体类定义了用户的数据结构，包含了Id、OpenId、NickName、Role、CreatedAt、AvatarUrl和PasswordHash等属性。
+ * 这些属性分别表示用户的唯一标识、微信用户唯一标识、昵称、用户角色状态、创建时间、头像URL以及账号密码注册时的哈希值。
+ * 通过这个类，开发者可以方便地在数据库中存储和管理用户的信息，并与预约信息进行关联。
+ */
 namespace WebApplication1.Models.Entities
 {
     public class User
