@@ -1,4 +1,8 @@
 # 更新：
+Master --更新 4.26：
+
+  * 更新 README.md（Markdown）文档。
+
 Master --更新 4.23：
   * 对文件类的注释补充已经补充到了Modle。
 Master --更新 4.19：
