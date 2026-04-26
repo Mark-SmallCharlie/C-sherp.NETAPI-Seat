@@ -1,4 +1,9 @@
-﻿namespace WebApplication1.Models.Mqtt
+﻿/**
+ * OneNetMqttMessage类用于表示从OneNet平台接收到的MQTT消息。
+ * 它包含了设备ID和数据流列表等属性。
+ */
+
+namespace WebApplication1.Models.Mqtt
 {
     public class OneNetMqttMessage
 
