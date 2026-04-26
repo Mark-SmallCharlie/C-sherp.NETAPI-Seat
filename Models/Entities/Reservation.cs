@@ -1,6 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
+
+/**
+ *这是一个用于表示座位预约信息的实体类。它包含了Id、UserId、SeatNumber、StartTime、EndTime、Status、AdminNote和CreatedAt等属性。
+ */
 namespace WebApplication1.Models.Entities
 {
     public class Reservation
