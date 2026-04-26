@@ -1,8 +1,12 @@
 # 更新：
+Master --更新 4.26：
+  * 添加Models下的OneNetMqttMessages文件的类的注释
+  * 添加Models下的MqttM文件的类的注释
+
 Master --更新 4.23：
   * 对文件类的注释补充已经补充到了Modle。
-Master --更新 4.19：
 
+Master --更新 4.19：
   * 更新Readme.md文档
 
 Master --更新 4.15：
@@ -21,6 +25,53 @@ Master --更新 4.11：
  * OneNET采用固定Token进行认证。
 --------
 # 智慧座位预约系统后端
+
+## ✨ 项目概览
+
+- **技术栈**：ASP.NET Core 8 / EF Core / JWT / OneNet HTTP 轮询
+- **主要场景**：微信小程序 + 后端 API + 物联网设备状态同步
+- **当前设备接入方式**：HTTP 轮询 OneNet（MQTT 相关代码保留作参考）
+
+---
+
+## 🗂️ 目录结构
+
+```text
+C-sherp.NETAPI-Seat/
+├── Controllers/                # API 控制器
+├── Data/                       # 数据库上下文与初始化
+├── Migrations/                 # EF Core 迁移
+├── Models/
+│   ├── DTOs/                   # 请求/响应 DTO
+│   ├── Entities/               # 数据库实体
+│   ├── Device/                 # 设备模型
+│   └── Mqtt/                   # MQTT 相关模型（保留）
+├── Security/                   # 安全相关工具（如 PasswordHasher）
+├── Services/
+│   ├── Interfaces/             # 服务接口定义
+│   ├── Mqtt/                   # MQTT 服务（保留）
+│   └── OneNet/                 # OneNet HTTP 轮询服务
+├── pages/                      # 微信小程序页面（index/login）
+├── WeChatApp/                  # 小程序相关目录
+├── Program.cs                  # 启动入口与依赖注入
+└── appsettings*.json           # 配置文件
+```
+
+---
+
+## 🚀 快速开始
+
+### 1) 环境要求
+
+- .NET SDK 8.x（见 `global.json`）
+
+### 2) 本地运行
+
+```bash
+dotnet restore
+dotnet build
+dotnet run
+```
 
 ## 1.Controllers
 
