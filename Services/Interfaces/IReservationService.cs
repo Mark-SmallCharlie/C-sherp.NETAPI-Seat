@@ -4,7 +4,8 @@ using WebApplication1.Models.DTOs.Responses;
 using System.Reflection.Metadata.Ecma335;
 
 
-
+// 这是一个用于定义预约服务接口的代码文件。
+// IReservationService接口包含了创建预约、取消预约、获取用户预约、获取所有预约、获取活跃预约以及检查座位冲突等方法。
 namespace WebApplication1.Services.Interfaces;
 
 public interface IReservationService
