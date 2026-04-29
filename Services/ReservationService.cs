@@ -17,11 +17,13 @@ public class ReservationService : IReservationService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<ReservationService> _logger;
+    private readonly IDeviceStatusService _deviceStatusService;
 
-    public ReservationService(AppDbContext context, ILogger<ReservationService> logger)
+    public ReservationService(AppDbContext context, ILogger<ReservationService> logger, IDeviceStatusService deviceStatusService)
     {
         _context = context;
         _logger = logger;
+        _deviceStatusService = deviceStatusService;
     }
 
     public async Task<Reservation?> CreateReservationAsync(CreateReservationRequest request, int userId)
@@ -290,6 +292,59 @@ public class ReservationService : IReservationService
         {
             _logger.LogError(ex, "记录座位状态变化失败");
             // 不抛出异常，避免影响主流程
+        }
+    }
+
+    public async Task<int> ReleaseTimeoutReservationsAsync()
+    {
+        try
+        {
+            var now = DateTime.Now;
+            // 找出过了 30 分钟且仍在 Active 状态的预约
+            var timeoutLimit = now.AddMinutes(-30);
+            var potentialTimeoutReservations = await _context.Reservations
+                .Where(r => r.Status == ReservationStatus.Active && r.StartTime <= timeoutLimit)
+                .ToListAsync();
+
+            if (!potentialTimeoutReservations.Any())
+                return 0;
+
+            var currentOccupancy = await _deviceStatusService.GetSeatOccupancyStatusAsync();
+            int releasedCount = 0;
+
+            foreach (var reservation in potentialTimeoutReservations)
+            {
+                // 检查设备状态中是否有人 (true=occupied, false=unoccupied/not-found=unoccupied)
+                bool isOccupied = false;
+                if (currentOccupancy != null && currentOccupancy.TryGetValue(reservation.SeatNumber, out var occupied))
+                {
+                    isOccupied = occupied;
+                }
+
+                if (!isOccupied)
+                {
+                    _logger.LogInformation("预约 {ReservationId} (座位 {SeatNumber}) 超时未落座，强制释放", reservation.Id, reservation.SeatNumber);
+                    
+                    reservation.Status = ReservationStatus.ForceCancelled;
+                    reservation.AdminNote = "超时30分钟未落座自动释放";
+                    releasedCount++;
+                    
+                    // 可选：同样记录到座位状态表中，或者如果已经被释放就没必要记了
+                    await RecordSeatStatusChangeAsync(reservation.SeatNumber, false);
+                }
+            }
+
+            if (releasedCount > 0)
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            return releasedCount;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "检查和释放超时预约失败");
+            return 0;
         }
     }
 }

@@ -67,6 +67,7 @@ builder.Services.AddSingleton<IDeviceStatusService, DeviceStatusService>();
 builder.Services.AddHttpClient();
 // 3. 注册新的 HTTP 轮询服务：
 builder.Services.AddHostedService<WebApplication1.Services.OneNet.OneNetPollingService>();
+builder.Services.AddHostedService<WebApplication1.Services.ReservationMonitorBackgroundService>();
 // 业务服务
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAuthService, AuthService>();
