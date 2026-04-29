@@ -4,6 +4,8 @@ using WebApplication1.Models.DTOs.Responses;
 
 namespace WebApplication1.Services.Interfaces;
 
+// 这是一个用于定义统计服务接口的代码文件。
+// IStatisticsService接口包含了获取每日统计数据、每月统计数据、座位利用率、热门座位以及用户活动等方法。
 public interface IStatisticsService
 {
 
