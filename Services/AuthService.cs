@@ -13,6 +13,10 @@ using WebApplication1.Models.Entities;
 using WebApplication1.Security;
 using WebApplication1.Services.Interfaces;
 
+/**
+ * 这是一个用于处理用户认证的服务类，包含管理员登录、微信登录和普通用户密码登录等功能。
+ * AuthService 类实现了 IAuthService 接口，使用依赖注入获取数据库上下文、配置、HTTP客户端工厂、用户服务和日志记录器。
+ */
 namespace WebApplication1.Services;
 
 public class AuthService : IAuthService
