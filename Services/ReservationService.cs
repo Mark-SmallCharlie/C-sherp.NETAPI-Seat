@@ -7,6 +7,12 @@ using WebApplication1.Services.Interfaces;
 
 namespace WebApplication1.API.Services;
 
+// 这是一个用于处理预约相关业务逻辑的服务类。
+/*** ReservationService - 实现了 IReservationService 接口，
+ * 提供预约相关的业务逻辑处理，包括创建预约、取消预约、获取用户预约列表、获取所有预约列表、检查座位冲突等功能。
+ * 使用 Entity Framework Core 进行数据库操作，并通过依赖注入获取 AppDbContext 和 ILogger。
+ * 包含输入验证、错误处理和日志记录，以确保系统的健壮性和可维护性。
+ */
 public class ReservationService : IReservationService
 {
     private readonly AppDbContext _context;
