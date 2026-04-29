@@ -8,6 +8,10 @@ using WebApplication1.Models.DTOs.Responses;
 using WebApplication1.Security;
 namespace WebApplication1.API.Services;
 
+// 这是一个用于实现用户服务的代码文件。
+// UserService 类实现了 IUserService 接口，提供了获取用户信息、创建用户、审批用户、更新用户角色以及注册用户等功能。
+// 通过依赖注入获取 AppDbContext 和 ILogger<UserService>，并使用 Entity Framework Core 进行数据库操作。
+// 包含了详细的日志记录和错误处理，以确保服务的可靠性和可维护性。
 public class UserService : IUserService
 {
     private readonly AppDbContext _context;
