@@ -7,6 +7,16 @@ using WebApplication1.Services.Interfaces;
 using WebApplication1.Models.DTOs.Responses;
 using System.Reflection.Metadata.Ecma335;
 
+/** 这是一个用于实现统计服务的代码文件。
+ * 此类使用了 Entity Framework Core 来查询数据库中的预约和用户数据，并计算各种统计信息，如每日统计、月度统计、座位利用率、热门座位和用户活跃度。
+ * 每个方法都包含了日志记录和异常处理，以确保在获取统计数据时能够追踪操作并处理可能出现的错误。
+ * 统计服务提供了以下功能：  * 1. GetDailyStatisticsAsync: 获取指定日期的预约和用户统计数据。
+ *  2. GetMonthlyStatisticsAsync: 获取指定年月的预约和用户统计数据。
+ *  3. GetSeatUtilizationAsync: 计算最近30天内每个座位的利用率以及总体利用率。
+ *  4. GetPopularSeatsAsync: 获取预约次数最多的座位列表。
+ *  5. GetUserActivityAsync: 获取最近一段时间内用户的预约活动数据，包括预约次数、总小时数和最后活动时间。
+ *  6. 每个统计方法都返回一个响应对象，包含了相关的统计数据和分析结果。
+ */
 
 namespace WebApplication1.Services;
 
