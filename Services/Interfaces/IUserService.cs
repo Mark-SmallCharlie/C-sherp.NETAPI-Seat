@@ -1,6 +1,8 @@
 ﻿using WebApplication1.Models.Entities;
 using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Models.DTOs.Responses;
+// 这是一个用于定义用户服务接口的代码文件。
+// IUserService接口包含了获取用户信息、创建用户、审批用户、更新用户角色以及注册用户等方法。
 namespace WebApplication1.Services.Interfaces
 {
     public interface IUserService
