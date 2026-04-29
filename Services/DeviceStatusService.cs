@@ -2,7 +2,9 @@
 using WebApplication1.Services.Interfaces;
 using System.Collections.Concurrent;
 
-
+// 设备状态服务 - 实现了 IDeviceStatusService 接口，
+// 提供设备状态管理功能，包括更新设备状态、获取设备状态、获取所有设备状态、获取座位占用状态以及配置和移除设备-座位映射等方法。
+// 使用内存存储设备状态和映射，对于小型应用足够，如果需要持久化可以改用数据库。
 namespace WebApplication1.Services
 {
     public class DeviceStatusService : IDeviceStatusService
