@@ -18,4 +18,9 @@ public interface IReservationService
     Task<List<Reservation>> GetActiveReservationsAsync();
     Task<bool> CheckSeatConflictAsync(int seatNumber, DateTime startTime, DateTime endTime, int? excludeReservationId = null);
 
+    /// <summary>
+    /// 定期检查超时的预约并自动强制取消
+    /// </summary>
+    /// <returns>被影响的预约数量</returns>
+    Task<int> ReleaseTimeoutReservationsAsync();
 }
