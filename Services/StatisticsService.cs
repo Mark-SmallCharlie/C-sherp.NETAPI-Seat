@@ -261,20 +261,22 @@ public class StatisticsService : IStatisticsService
         }
     }
 
-    Task<Interfaces.StatisticsResponse> IStatisticsService.GetDailyStatisticsAsync(DateTime date)
-    {
-        throw new NotImplementedException();
-    }
-
-    Task<Interfaces.StatisticsResponse> IStatisticsService.GetMonthlyStatisticsAsync(int year, int month)
-    {
-        throw new NotImplementedException();
-    }
-
-    Task<Interfaces.SeatUtilizationResponse> IStatisticsService.GetSeatUtilizationAsync()
-    {
-        throw new NotImplementedException();
-    }
+    // 显式接口实现已注释：因 IStatisticsService 返回类型已统一为 Services 命名空间下的类型，
+    // 公共方法可直接作为隐式实现，无需以下显式实现（原实现会抛 NotImplementedException）。
+    // Task<Interfaces.StatisticsResponse> IStatisticsService.GetDailyStatisticsAsync(DateTime date)
+    // {
+    //     throw new NotImplementedException();
+    // }
+    //
+    // Task<Interfaces.StatisticsResponse> IStatisticsService.GetMonthlyStatisticsAsync(int year, int month)
+    // {
+    //     throw new NotImplementedException();
+    // }
+    //
+    // Task<Interfaces.SeatUtilizationResponse> IStatisticsService.GetSeatUtilizationAsync()
+    // {
+    //     throw new NotImplementedException();
+    // }
 }
 
 // 扩展的统计响应类
