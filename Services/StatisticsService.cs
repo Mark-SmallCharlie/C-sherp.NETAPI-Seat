@@ -166,10 +166,53 @@ public class StatisticsService : IStatisticsService
                 seatUtilizations[seat.SeatNumber] = Math.Round(utilization * 100, 2);
             }
 
-            // 计算总体利用率
+            // 计算总体预约利用率
             var totalUsedHours = grouped.Sum(r => r.TotalHours);
             var overallUtilization = totalAvailableHours > 0 ?
                 Math.Round((totalUsedHours / totalAvailableHours) * 100, 2) : 0;
+
+            // ========== 基于 SeatStatusHistory 计算实际使用率（硬件雷达检测数据） ==========
+            var actualUtilizationRates = new Dictionary<int, double>();
+
+            var statusRecords = await _context.SeatStatusHistories
+                .Where(h => h.Timestamp >= thirtyDaysAgo)
+                .OrderBy(h => h.SeatNumber)
+                .ThenBy(h => h.Timestamp)
+                .Select(h => new { h.SeatNumber, h.IsOccupied, h.Timestamp })
+                .ToListAsync();
+
+            // 按座位分组，配对占用/释放事件计算时长
+            foreach (var seatGroup in statusRecords.GroupBy(h => h.SeatNumber))
+            {
+                double occupiedHours = 0;
+                DateTime? occupyStart = null;
+
+                foreach (var record in seatGroup)
+                {
+                    if (record.IsOccupied && occupyStart == null)
+                    {
+                        occupyStart = record.Timestamp;
+                    }
+                    else if (!record.IsOccupied && occupyStart != null)
+                    {
+                        occupiedHours += (record.Timestamp - occupyStart.Value).TotalHours;
+                        occupyStart = null;
+                    }
+                }
+
+                // 如果最后一条记录是占用状态（人还没走），算到当前时间
+                if (occupyStart != null)
+                {
+                    occupiedHours += (DateTime.UtcNow - occupyStart.Value).TotalHours;
+                }
+
+                var actualRate = Math.Min(occupiedHours / (totalDays * 24), 1.0);
+                actualUtilizationRates[seatGroup.Key] = Math.Round(actualRate * 100, 2);
+            }
+
+            var totalActualHours = actualUtilizationRates.Values.Sum(r => r / 100.0 * (totalDays * 24));
+            var overallActualUtilization = totalAvailableHours > 0 ?
+                Math.Round((totalActualHours / totalAvailableHours) * 100, 2) : 0;
 
             var response = new SeatUtilizationResponse
             {
@@ -177,10 +220,13 @@ public class StatisticsService : IStatisticsService
                 OverallUtilization = overallUtilization,
                 TotalSeats = totalSeats,
                 AnalyzedDays = (int)totalDays,
-                TotalReservations = grouped.Sum(r => r.ReservationCount)
+                TotalReservations = grouped.Sum(r => r.ReservationCount),
+                ActualUtilizationRates = actualUtilizationRates,
+                OverallActualUtilization = overallActualUtilization
             };
 
-            _logger.LogInformation("座位利用率统计完成 - 总体利用率: {OverallUtilization}%", overallUtilization);
+            _logger.LogInformation("座位利用率统计完成 - 预约利用率: {OverallUtilization}%, 实际使用率: {OverallActual}%",
+                overallUtilization, overallActualUtilization);
 
             return response;
         }
@@ -308,13 +354,13 @@ public class StatisticsResponse
 
 public class SeatUtilizationResponse
 {
-    public Dictionary<int, double> UtilizationRates { get; set; } = new();
+    public Dictionary<int, double> UtilizationRates { get; set; } = new();       // 预约利用率（基于Reservations表）
     public double OverallUtilization { get; set; }
     public int TotalSeats { get; set; }
     public int AnalyzedDays { get; set; }
     public int TotalReservations { get; set; }
-
-    
+    public Dictionary<int, double> ActualUtilizationRates { get; set; } = new(); // 实际使用率（基于SeatStatusHistory硬件数据）
+    public double OverallActualUtilization { get; set; }
 }
 
 public class PopularSeatResponse
