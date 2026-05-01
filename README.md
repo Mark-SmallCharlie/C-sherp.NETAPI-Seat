@@ -68,20 +68,25 @@ Master --更新 4.11：
 
 ```text
 C-sherp.NETAPI-Seat/
+├── .github/                    # GitHub 相关配置（如 Actions 工作流）
 ├── Controllers/                # API 控制器
 ├── Data/                       # 数据库上下文与初始化
 ├── Migrations/                 # EF Core 迁移
 ├── Models/
-│   ├── DTOs/                   # 请求/响应 DTO
-│   ├── Entities/               # 数据库实体
 │   ├── Device/                 # 设备模型
+│   ├── DTOs/                   # 请求/响应 DTO
+│   │   ├── Requests/           # 请求参数模型
+│   │   └── Responses/          # 响应数据模型
+│   ├── Entities/               # 数据库实体
 │   └── Mqtt/                   # MQTT 相关模型（保留）
+├── pages/                      # 微信小程序页面（index/login）
+├── Properties/                 # 项目配置（如 launchSettings.json）
 ├── Security/                   # 安全相关工具（如 PasswordHasher）
 ├── Services/
 │   ├── Interfaces/             # 服务接口定义
 │   ├── Mqtt/                   # MQTT 服务（保留）
 │   └── OneNet/                 # OneNet HTTP 轮询服务
-├── pages/                      # 微信小程序页面（index/login）
+│   └── 其他Service服务类       # 不做为单独目录的服务类（如统计服务、认证服务等）
 ├── WeChatApp/                  # 小程序相关目录
 ├── Program.cs                  # 启动入口与依赖注入
 └── appsettings*.json           # 配置文件
