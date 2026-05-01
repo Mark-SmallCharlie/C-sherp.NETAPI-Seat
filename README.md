@@ -15,7 +15,7 @@ Master --更新5.1：
  *  GetSeatUtilizationAsync 新增逻辑（算法）：
     * 1. 查询 SeatStatusHistories 表近30天记录，按座位号+时间排序
     * 2. 按座位分组，遍历状态变化事件：
-    	- IsOccupied=true  → 记录开始时间
+      	- IsOccupied=true  → 记录开始时间
   		- IsOccupied=false → 计算与开始时间的差值，累加到占用时长
     * 3. 末尾仍为"占用中" → 用 DateTime.UtcNow 作为结束时间
     * 4. 占用时长 / 理论可用时长 × 100% = 实际使用率
