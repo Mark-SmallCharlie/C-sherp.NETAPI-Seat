@@ -139,10 +139,18 @@ public class StatisticsService : IStatisticsService
             var seatUtilizations = new Dictionary<int, double>();
             double totalUtilization = 0;
 
-            // 获取最近30天的预约数据
-            var recentReservations = await _context.Reservations
+            // 获取最近30天的预约数据（改为先拉取原始时间到内存再计算，避免 EF Core 翻译 TimeSpan.TotalHours 失败）
+            var rawData = await _context.Reservations
                 .Where(r => r.StartTime >= thirtyDaysAgo &&
                            (r.Status == ReservationStatus.Active || r.Status == ReservationStatus.Completed))
+                .Select(r => new { r.SeatNumber, r.StartTime, r.EndTime })
+                .ToListAsync();
+
+            var totalDays = (DateTime.UtcNow - thirtyDaysAgo).TotalDays;
+            var totalAvailableHours = totalSeats * totalDays * 24;
+
+            // 内存中按座位分组并计算利用率
+            var grouped = rawData
                 .GroupBy(r => r.SeatNumber)
                 .Select(g => new
                 {
@@ -150,19 +158,16 @@ public class StatisticsService : IStatisticsService
                     TotalHours = g.Sum(r => (r.EndTime - r.StartTime).TotalHours),
                     ReservationCount = g.Count()
                 })
-                .ToListAsync();
+                .ToList();
 
-            var totalDays = (DateTime.UtcNow - thirtyDaysAgo).TotalDays;
-            var totalAvailableHours = totalSeats * totalDays * 24; // 总可用小时数
-
-            foreach (var seat in recentReservations)
+            foreach (var seat in grouped)
             {
                 var utilization = Math.Min(seat.TotalHours / (totalDays * 24), 1.0);
-                seatUtilizations[seat.SeatNumber] = Math.Round(utilization * 100, 2); // 转换为百分比
+                seatUtilizations[seat.SeatNumber] = Math.Round(utilization * 100, 2);
             }
 
             // 计算总体利用率
-            var totalUsedHours = recentReservations.Sum(r => r.TotalHours);
+            var totalUsedHours = grouped.Sum(r => r.TotalHours);
             var overallUtilization = totalAvailableHours > 0 ?
                 Math.Round((totalUsedHours / totalAvailableHours) * 100, 2) : 0;
 
@@ -172,7 +177,7 @@ public class StatisticsService : IStatisticsService
                 OverallUtilization = overallUtilization,
                 TotalSeats = totalSeats,
                 AnalyzedDays = (int)totalDays,
-                TotalReservations = recentReservations.Sum(r => r.ReservationCount)
+                TotalReservations = grouped.Sum(r => r.ReservationCount)
             };
 
             _logger.LogInformation("座位利用率统计完成 - 总体利用率: {OverallUtilization}%", overallUtilization);
@@ -192,8 +197,13 @@ public class StatisticsService : IStatisticsService
         {
             _logger.LogInformation("获取热门座位统计 - 前 {TopN} 名", topN);
 
-            var popularSeats = await _context.Reservations
+            // 先拉取原始数据到内存，避免 EF Core 翻译 TimeSpan.TotalHours 失败
+            var rawData = await _context.Reservations
                 .Where(r => r.Status == ReservationStatus.Active || r.Status == ReservationStatus.Completed)
+                .Select(r => new { r.SeatNumber, r.StartTime, r.EndTime })
+                .ToListAsync();
+
+            var popularSeats = rawData
                 .GroupBy(r => r.SeatNumber)
                 .Select(g => new PopularSeat
                 {
@@ -203,7 +213,7 @@ public class StatisticsService : IStatisticsService
                 })
                 .OrderByDescending(s => s.ReservationCount)
                 .Take(topN)
-                .ToListAsync();
+                .ToList();
 
             var response = new PopularSeatResponse
             {
@@ -230,8 +240,13 @@ public class StatisticsService : IStatisticsService
 
             var startDate = DateTime.UtcNow.AddDays(-days).Date;
 
-            var userActivity = await _context.Reservations
+            // 先拉取原始数据到内存，避免 EF Core 翻译 TimeSpan.TotalHours 失败
+            var rawData = await _context.Reservations
                 .Where(r => r.CreatedAt >= startDate)
+                .Select(r => new { r.UserId, r.StartTime, r.EndTime, r.CreatedAt })
+                .ToListAsync();
+
+            var userActivity = rawData
                 .GroupBy(r => r.UserId)
                 .Select(g => new UserActivity
                 {
@@ -241,7 +256,7 @@ public class StatisticsService : IStatisticsService
                     LastActivity = g.Max(r => r.CreatedAt)
                 })
                 .OrderByDescending(u => u.ReservationCount)
-                .ToListAsync();
+                .ToList();
 
             var response = new UserActivityResponse
             {
