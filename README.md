@@ -3,7 +3,7 @@
 Master --更新5.1：
  * 添加 `ReservationMonitorBackgroundService` 系统定时监控后台服务：如果预约超过 30 分钟硬件感知无人使用，则自动进行强制释放座位（`ForceCancelled`）。
  * 并在 `IReservationService` 与 `ReservationService` 中实现了 `ReleaseTimeoutReservationsAsync` 作为判断与释放的具体逻辑。
- * 对IReservationService和ReservatonService的显示接口调用方法进行注释；
+ * 对`IReservationService`和`ReservationService`的显示接口调用方法进行注释；
  * 修改了三个方法：
     * GetSeatUtilizationAsync (line 143）
 	* GetPopularSeatsAsync (line 201)
