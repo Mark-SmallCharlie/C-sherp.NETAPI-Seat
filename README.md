@@ -5,9 +5,9 @@ Master --更新5.1：
  * 并在 `IReservationService` 与 `ReservationService` 中实现了 `ReleaseTimeoutReservationsAsync` 作为判断与释放的具体逻辑。
  * 对`IReservationService`和`ReservationService`的显示接口调用方法进行注释；
  * 修改了三个方法：
-    * GetSeatUtilizationAsync (line 143）
-	* GetPopularSeatsAsync (line 201)
-    * GetUserActivityAsync (line 240)
+	* GetSeatUtilizationAsync (line 130）
+	* GetPopularSeatsAsync (line 240)
+	* GetUserActivityAsync (line 280)
  * SeatUtilizationResponse 新增字段：
     * Dictionary<int, double> ActualUtilizationRates   // 每座实际使用率%（硬件数据）
     * double OverallActualUtilization                   // 整体实际使用率%

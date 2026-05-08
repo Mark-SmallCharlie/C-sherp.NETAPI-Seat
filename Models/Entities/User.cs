@@ -31,6 +31,10 @@ namespace WebApplication1.Models.Entities
         [MaxLength(128)]
         public string? PasswordHash { get; set; }
 
+        public int ViolationCount { get; set; } = 0; // 违约次数计数
+
+        public DateTime? SuspendedUntil { get; set; } // 账号预约权限封禁截止时间
+
         // 导航属性 - 该用户的所有预约
         public virtual ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
     }

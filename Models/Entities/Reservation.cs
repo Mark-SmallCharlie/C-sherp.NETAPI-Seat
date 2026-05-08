@@ -29,6 +29,8 @@ namespace WebApplication1.Models.Entities
 
         public string? AdminNote { get; set; } // 管理员强制取消时的备注
 
+        public DateTime? LeaveEndTime { get; set; } // 用户暂离截止时间，期间不触发硬件自动释放
+
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow; // 创建时间
 
