@@ -7,7 +7,7 @@ Master --更新 5.8：
 *  2.控制器公开新接口 (ReservationController.cs)：
 	* 添加了 POST: api/Reservation/temp-leave/{reservationId} 接口，供前端点击触发暂离（默认 15 分钟）。
 	* 添加了 POST: api/Reservation/return-leave/{reservationId} 接口，供用户提前返回并取消暂离状态。
-* 3.	核心业务逻辑改进 (ReservationService.cs)：
+*  3.核心业务逻辑改进 (ReservationService.cs)：
 	* 拦截预约：在 CreateReservationAsync(CreateReservationRequest, int) 首行添加逻辑，如果用户的 SuspendedUntil 在未来，将阻止其预约并以错误提示“因违规多次被冻结”拦截请求。
 	* 违规处分：在后台监控任务 ReleaseTimeoutReservationsAsync() 中，若座位超 30 分钟未感知落座，被“强制释放”后：顺带增加用户 ViolationCount。满 3 次时，将用户 SuspendedUntil 设置为三天后。
 	* 暂离保护：同在 ReleaseTimeoutReservationsAsync() 中，扫描时如果发现该预定单的 LeaveEndTime 已存在且大于当前时间，则强制取消的巡检将自动 continue;（跳过它），保护处于洗手间等场景的用户
