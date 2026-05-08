@@ -33,6 +33,14 @@ public class ReservationService : IReservationService
             _logger.LogInformation("创建预约 - 用户: {UserId}, 座位: {SeatNumber}, 时间: {StartTime} 到 {EndTime}",
                 userId, request.SeatNumber, request.StartTime, request.EndTime);
 
+            // 检查信用积分/封禁状态
+            var user = await _context.Users.FindAsync(userId);
+            if (user != null && user.SuspendedUntil.HasValue && user.SuspendedUntil.Value > DateTime.UtcNow)
+            {
+                _logger.LogWarning("用户 {UserId} 处于违约封禁状态，解封时间: {SuspendedUntil}", userId, user.SuspendedUntil.Value);
+                throw new InvalidOperationException($"由于多次违约，您的预约权限已被冻结至 {user.SuspendedUntil.Value.ToLocalTime()}");
+            }
+
             // 输入验证
             if (request.StartTime >= request.EndTime)
             {
@@ -228,6 +236,50 @@ public class ReservationService : IReservationService
         }
     }
 
+    public async Task<bool> SetTemporaryLeaveAsync(int reservationId, int userId, int minutes = 15)
+    {
+        try
+        {
+            var reservation = await _context.Reservations.FindAsync(reservationId);
+            if (reservation == null || reservation.UserId != userId || reservation.Status != ReservationStatus.Active)
+            {
+                return false;
+            }
+
+            reservation.LeaveEndTime = DateTime.UtcNow.AddMinutes(minutes);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("用户 {UserId} 设置了预约 {ReservationId} 暂离 {Minutes} 分钟", userId, reservationId, minutes);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "设置暂离失败");
+            return false;
+        }
+    }
+
+    public async Task<bool> ReturnFromLeaveAsync(int reservationId, int userId)
+    {
+        try
+        {
+            var reservation = await _context.Reservations.FindAsync(reservationId);
+            if (reservation == null || reservation.UserId != userId)
+            {
+                return false;
+            }
+
+            reservation.LeaveEndTime = null;
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("用户 {UserId} 结束了预约 {ReservationId} 的暂离状态", userId, reservationId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "取消暂离失败");
+            return false;
+        }
+    }
+
     public async Task<List<Reservation>> GetActiveReservationsAsync()
     {
         try
@@ -299,10 +351,11 @@ public class ReservationService : IReservationService
     {
         try
         {
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow; // 统一用 UTC 计算
             // 找出过了 30 分钟且仍在 Active 状态的预约
             var timeoutLimit = now.AddMinutes(-30);
             var potentialTimeoutReservations = await _context.Reservations
+                .Include(r => r.User)
                 .Where(r => r.Status == ReservationStatus.Active && r.StartTime <= timeoutLimit)
                 .ToListAsync();
 
@@ -314,6 +367,12 @@ public class ReservationService : IReservationService
 
             foreach (var reservation in potentialTimeoutReservations)
             {
+                // 如果用户设置了暂离并且暂离尚未结束，跳过自动释放
+                if (reservation.LeaveEndTime.HasValue && reservation.LeaveEndTime.Value > now)
+                {
+                    continue;
+                }
+
                 // 检查设备状态中是否有人 (true=occupied, false=unoccupied/not-found=unoccupied)
                 bool isOccupied = false;
                 if (currentOccupancy != null && currentOccupancy.TryGetValue(reservation.SeatNumber, out var occupied))
@@ -324,11 +383,26 @@ public class ReservationService : IReservationService
                 if (!isOccupied)
                 {
                     _logger.LogInformation("预约 {ReservationId} (座位 {SeatNumber}) 超时未落座，强制释放", reservation.Id, reservation.SeatNumber);
-                    
+
                     reservation.Status = ReservationStatus.ForceCancelled;
-                    reservation.AdminNote = "超时30分钟未落座自动释放";
+                    reservation.AdminNote = "超时30分钟未落座或暂离超时自动释放";
                     releasedCount++;
-                    
+
+                    // -- 增加信用积分惩罚机制 --
+                    if (reservation.User != null)
+                    {
+                        reservation.User.ViolationCount++;
+                        _logger.LogWarning("用户 {UserId} 触发占座违规，当前违规次数: {Count}", reservation.User.Id, reservation.User.ViolationCount);
+
+                        // 假设 3 次违规，封禁 3 天
+                        if (reservation.User.ViolationCount >= 3)
+                        {
+                            reservation.User.SuspendedUntil = now.AddDays(3);
+                            reservation.User.ViolationCount = 0; // 封禁后重置计数
+                            _logger.LogWarning("用户 {UserId} 触发多次违规，已冻结预约权限至 {SuspendedUntil}", reservation.User.Id, reservation.User.SuspendedUntil);
+                        }
+                    }
+
                     // 可选：同样记录到座位状态表中，或者如果已经被释放就没必要记了
                     await RecordSeatStatusChangeAsync(reservation.SeatNumber, false);
                 }
