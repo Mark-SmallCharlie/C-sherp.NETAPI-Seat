@@ -19,6 +19,16 @@ public interface IReservationService
     Task<bool> CheckSeatConflictAsync(int seatNumber, DateTime startTime, DateTime endTime, int? excludeReservationId = null);
 
     /// <summary>
+    /// 设置暂离状态，延缓自动释放
+    /// </summary>
+    Task<bool> SetTemporaryLeaveAsync(int reservationId, int userId, int minutes = 15);
+
+    /// <summary>
+    /// 取消暂离状态
+    /// </summary>
+    Task<bool> ReturnFromLeaveAsync(int reservationId, int userId);
+
+    /// <summary>
     /// 定期检查超时的预约并自动强制取消
     /// </summary>
     /// <returns>被影响的预约数量</returns>
