@@ -7,7 +7,7 @@ using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Services.Interfaces;
 /**
   ReservationController是一个ASP.NET Core Web API控制器，
-负责处理与预约相关的HTTP请求。它提供了创建预约、取消预约、获取用户预约列表、
+负责处理与预约相关的HTTP请求。它提供了创造预约、取消预约、获取用户预约列表、
 获取所有预约列表、获取活跃预约列表以及检查座位冲突等功能。
 该控制器使用依赖注入来获取预约服务和日志记录器，
 并通过授权属性确保只有认证用户才能访问这些端点。
@@ -49,18 +49,18 @@ public class ReservationController : BaseController
 
             if (reservation == null)
             {
-                return BadRequestResponse("创建预约失败，可能是时间冲突或座位无效");
+                return BadRequestResponse("创造预约失败，可能是时间冲突或座位无效");
             }
 
-            _logger.LogInformation("创建预约成功 - 预约ID: {ReservationId}, 用户ID: {UserId}",
+            _logger.LogInformation("创造预约成功 - 预约ID: {ReservationId}, 用户ID: {UserId}",
                 reservation.Id, userId);
 
-            return OkResponse(reservation, "预约创建成功");
+            return OkResponse(reservation, "预约创造成功");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "创建预约异常 - 用户ID: {UserId}", GetUserId());
-            return ServerErrorResponse("创建预约失败");
+            _logger.LogError(ex, "创造预约异常 - 用户ID: {UserId}", GetUserId());
+            return ServerErrorResponse("创造预约失败");
         }
     }
 
@@ -180,6 +180,59 @@ public class ReservationController : BaseController
         {
             _logger.LogError(ex, "检查座位冲突异常");
             return ServerErrorResponse("检查座位冲突失败");
+        }
+    }
+
+    [HttpPost("temp-leave/{reservationId}")]
+    public async Task<IActionResult> SetTemporaryLeave(int reservationId, [FromQuery] int minutes = 15)
+    {
+        try
+        {
+            var userId = GetUserId();
+            if (userId == null)
+            {
+                return UnauthorizedResponse("用户未认证");
+            }
+
+            var success = await _reservationService.SetTemporaryLeaveAsync(reservationId, userId.Value, minutes);
+            if (!success)
+            {
+                // 可以是找不到，或者不在 Active 状态，或者不是该用户的预约
+                return BadRequestResponse("设置暂离失败，可能是预约不存在、已结束或非本人操作");
+            }
+
+            return OkResponse<object>(null, $"成功设置暂离 {minutes} 分钟");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "设置暂离异常");
+            return ServerErrorResponse("设置暂离失败");
+        }
+    }
+
+    [HttpPost("return-leave/{reservationId}")]
+    public async Task<IActionResult> ReturnFromLeave(int reservationId)
+    {
+        try
+        {
+            var userId = GetUserId();
+            if (userId == null)
+            {
+                return UnauthorizedResponse("用户未认证");
+            }
+
+            var success = await _reservationService.ReturnFromLeaveAsync(reservationId, userId.Value);
+            if (!success)
+            {
+                return BadRequestResponse("结束暂离失败，可能是预约不存在或非本人操作");
+            }
+
+            return OkResponse<object>(null, "已成功取消暂离状态，欢迎回归座位");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "结束暂离异常");
+            return ServerErrorResponse("结束暂离失败");
         }
     }
 }
