@@ -1,5 +1,7 @@
 # 更新：
-
+Master --更新 5.13：
+* 1.引入分布式锁（如基于 Redis 的 Redlock）锁住具体的 SeatNumber，
+*  2.（待补充）或者在 EF Core 中对座位表添加乐观并发控制（Concurrency Token / RowVersion），确保同一时间只有一个预约能落库成功，彻底解决高并发预约冲突问题。
 Master --更新 5.8：
 *  1.实体扩展 (User.cs, Reservation.cs)：
     * 在 User 实体中添加了 ViolationCount（违约次数统计）和 SuspendedUntil（封禁截至时间）字段。
