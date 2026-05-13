@@ -19,6 +19,11 @@ public class ReservationService : IReservationService
     private readonly ILogger<ReservationService> _logger;
     private readonly IDeviceStatusService _deviceStatusService;
 
+    // 引入基于内存的并发锁（SemaphoreSlim），按座位号（SeatNumber）划分细粒度锁。
+    // 用于防止高并发场景下，多个请求同时预约同一个座位导致的“超卖/重叠预约”问题。
+    // 注：若后续系统横向扩展为多实例/微服务架构，可将此替换为基于 Redis 的分布式锁（如 Redlock）。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, SemaphoreSlim> _seatLocks = new();
+
     public ReservationService(AppDbContext context, ILogger<ReservationService> logger, IDeviceStatusService deviceStatusService)
     {
         _context = context;
@@ -28,6 +33,10 @@ public class ReservationService : IReservationService
 
     public async Task<Reservation?> CreateReservationAsync(CreateReservationRequest request, int userId)
     {
+        // 尝试获取该座位的独占锁
+        var seatLock = _seatLocks.GetOrAdd(request.SeatNumber, _ => new SemaphoreSlim(1, 1));
+        await seatLock.WaitAsync();
+
         try
         {
             _logger.LogInformation("创建预约 - 用户: {UserId}, 座位: {SeatNumber}, 时间: {StartTime} 到 {EndTime}",
@@ -99,6 +108,11 @@ public class ReservationService : IReservationService
         {
             _logger.LogError(ex, "创建预约失败");
             throw;
+        }
+        finally
+        {
+            // 业务处理完成（成功或异常），释放座位的并发锁
+            seatLock.Release();
         }
     }
 
