@@ -66,7 +66,9 @@ Page({
       wx.showLoading({ title: '登录中', mask: true });
       try {
         const norm = await api.login(username, password);
-        auth.setToken(norm.token || '');
+        if (norm.token) {
+          auth.setToken(norm.token);   // 必须调用
+        }
         const uname = norm.username || username;
         const role =
           norm.role === 'admin' || uname === 'admin' ? 'admin' : 'user';
@@ -98,7 +100,7 @@ Page({
 
     const users = auth.getRegisteredUsers();
     const found = users.find(
-      (u) => u.username === username && u.password === password
+      (u) => (u.username || u.Username) === username && u.password === password
     );
     if (!found) {
       wx.showToast({ title: '账号或密码错误', icon: 'none' });
@@ -132,26 +134,31 @@ Page({
     if (config.USE_REMOTE_API) {
       wx.showLoading({ title: '提交中', mask: true });
       try {
-        await api.register(regUsername, regPassword);
+        const result = await api.register(regUsername, regPassword);   // 接收返回值
         wx.hideLoading();
-        wx.showToast({ title: '注册成功，请登录', icon: 'success' });
-        this.setData({
-          showRegister: false,
-          username: regUsername,
-          password: '',
-          regUsername: '',
-          regPassword: '',
-          regPassword2: ''
-        });
+        if (result && result.success) {
+          wx.showToast({ title: result.message || '注册成功，请登录', icon: 'success' });
+          this.setData({
+            showRegister: false,
+            username: regUsername,
+            password: '',
+            regUsername: '',
+            regPassword: '',
+            regPassword2: ''
+          });
+        } else{
+          wx.showToast({title: result.message ||'注册成功，请登录',icon :'none'});  //有错误
+        }
       } catch (e) {
         wx.hideLoading();
-        api.errToast(e, '注册失败');
+        console.error('注册请求异常', e );
+        api.errToast(e, '后端暂未开放注册接口');
       }
       return;
     }
 
     const users = auth.getRegisteredUsers();
-    if (users.some((u) => u.username === regUsername)) {
+    if (users.some((u) => (u.username || u.Username) === regUsername)) {
       wx.showToast({ title: '用户名已存在', icon: 'none' });
       return;
     }
@@ -171,47 +178,54 @@ Page({
 
   onWechatLogin() {
     wx.showLoading({ title: '登录中', mask: true });
-    wx.login({
-      success: async (res) => {
-        if (!res.code) {
-          wx.hideLoading();
-          wx.showToast({ title: '获取登录态失败', icon: 'none' });
-          return;
-        }
-
-        if (config.USE_REMOTE_API) {
-          try {
-            const norm = await api.wechatLogin(res.code);
-            auth.setToken(norm.token || '');
-            auth.setSession({
-              username: norm.username || '微信用户',
-              role: norm.role === 'admin' ? 'admin' : 'user',
-              loginType: 'wechat',
-              code: res.code,
-              loginAt: Date.now()
-            });
-            wx.hideLoading();
-            this.gotoHome();
-          } catch (e) {
-            wx.hideLoading();
-            api.errToast(e, '微信登录失败');
-          }
-          return;
-        }
-
-        wx.hideLoading();
-        auth.setSession({
-          username: '微信用户',
-          role: 'user',
-          loginType: 'wechat',
-          code: res.code,
-          loginAt: Date.now()
+    //获取用户信息（需要用户授权）
+    wx.getUserProfile({
+      desc: '用于完善用户资料',
+      success: (profile) => {
+        const nickName = profile.userInfo.nickName;
+        const avatarUrl = profile.userInfo.avatarUrl;
+        wx.login({
+          success: async (res) => {
+            if (!res.code) {
+              wx.hideLoading();
+              wx.showToast({ title: '获取登录态失败', icon: 'none' });
+              return;
+            }
+            if (config.USE_REMOTE_API) {
+              try {
+                const norm = await api.wechatLogin(res.code, nickName, avatarUrl);
+                auth.setToken(norm.token || '');
+                auth.setSession({
+                  username: norm.username || nickName,
+                  role: norm.role === 'admin' ? 'admin' : 'user',
+                  loginType: 'wechat',
+                  loginAt: Date.now()
+                });
+                wx.hideLoading();
+                this.gotoHome();
+              } catch (e) {
+                wx.hideLoading();
+                api.errToast(e, '微信登录失败');
+              }
+            } else {
+              // 本地演示模式...
+              wx.hideLoading();
+              auth.setSession({
+                username: '微信用户',
+                role: 'user',
+                loginType: 'wechat',
+                code: res.code,
+                loginAt: Date.now()
+              });
+              this.gotoHome();
+            }
+          },
+          fail: () => { /* ... */ }
         });
-        this.gotoHome();
       },
       fail: () => {
         wx.hideLoading();
-        wx.showToast({ title: '微信登录失败', icon: 'none' });
+        wx.showToast({ title: '需要授权用户信息', icon: 'none' });
       }
     });
   }

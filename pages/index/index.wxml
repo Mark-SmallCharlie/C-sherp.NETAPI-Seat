@@ -8,13 +8,17 @@
     <view wx:else class="tip">管理员：点击空座可预约（可同时占多个）；点击任一已占座位可立即释放（含他人预约与使用中）。座位卡上会显示预约人/使用人。</view>
 
     <view wx:if="{{isAdmin}}" class="util-card">
+      <view class="admin-btn-row">
+        <button class="audit-btn" bindtap="onAuditTap">用户审核</button>
+        <button class="stats-btn" bindtap="onStatsTap">数据统计</button>
+      </view>
       <view class="util-title">座位利用率</view>
       <view class="util-row">
         <text class="util-pct">{{utilizationPercent}}%</text>
         <text class="util-sub">已占用 {{usedSeats}} / {{totalSeats}}</text>
       </view>
       <view class="util-track">
-        <view class="util-fill" style="width: {{utilizationPercent}}%;" />
+        <view class="util-fill" style="width: {{utilizationPercent}};" />
       </view>
     </view>
 
@@ -48,11 +52,38 @@
       </view>
     </view>
   </view>
-
+  
   <view wx:if="{{toastVisible}}" class="msg-toast">
     <view class="msg-toast-inner">
       <view wx:if="{{toastIcon === 'cross'}}" class="msg-toast-cross">×</view>
       <view class="msg-toast-text">{{toastMsg}}</view>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{showAuditModal}}" class="modal-mask" bindtap="onCloseModal">
+  <view class="modal-container" catchtap="noop">
+    <view class="modal-header">待审核用户</view>
+    <scroll-view class="modal-body" scroll-y>
+      <block wx:if="{{pendingUsers.length === 0}}">
+        <view class="empty-tip">暂无待审核用户</view>
+      </block>
+      <block wx:for="{{pendingUsers}}" wx:key="id">
+        <view class="audit-item">
+          <view class="audit-info">
+            <text>昵称：{{item.nickName}}</text>
+            <text>OpenId：{{item.openId}}</text>
+            <text>注册时间：{{item.createdAt}}</text>
+          </view>
+          <view class="audit-actions">
+            <button size="mini" type="primary" data-id="{{item.id}}" data-approve="true" bindtap="onApproveUser">通过</button>
+            <button size="mini" type="warn" data-id="{{item.id}}" data-approve="false" bindtap="onApproveUser">拒绝</button>
+          </view>
+        </view>
+      </block>
+    </scroll-view>
+    <view class="modal-footer">
+      <button bindtap="onCloseModal">关闭</button>
     </view>
   </view>
 </view>

@@ -263,3 +263,89 @@
   text-align: center;
   box-sizing: border-box;
 }
+
+/* 审核按钮 */
+.admin-btn-row {
+  display: flex;
+  gap: var(--space-sm);
+  margin: 20rpx auto;
+  width: 100%;
+}
+.audit-btn {
+  flex: 1;
+  background-color: #2c3e50;
+  color: white;
+}
+.stats-btn {
+  flex: 1;
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* 弹窗遮罩 */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-container {
+  width: 80%;
+  max-height: 80%;
+  background-color: #fff;
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 30rpx;
+  font-size: 36rpx;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-body {
+  flex: 1;
+  padding: 20rpx;
+}
+
+.audit-item {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 20rpx 0;
+}
+
+.audit-info {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.audit-actions {
+  display: flex;
+  justify-content: space-around;
+}
+
+.modal-footer {
+  padding: 20rpx;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+.empty-tip {
+  text-align: center;
+  padding: 40rpx;
+  color: #999;
+}
+
