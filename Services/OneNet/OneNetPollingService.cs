@@ -104,7 +104,12 @@ namespace WebApplication1.Services.OneNet
                         foreach (var item in dataArray.EnumerateArray())
                         {
                             var identifier = item.GetProperty("identifier").GetString() ?? "";
-                            var valueStr = item.GetProperty("value").GetString() ?? "false";
+                            string valueStr = "false";
+
+                            if (item.TryGetProperty("value", out var valueElement))
+                            {
+                                valueStr = valueElement.ValueKind == JsonValueKind.String ? valueElement.GetString() ?? "false" : valueElement.GetRawText();
+                            }
 
                             // 检查标识符是否是 "seat_1", "seat_2" 这种格式
                             if (identifier.StartsWith("seat_") && int.TryParse(identifier.Substring(5), out int seatNumber))
