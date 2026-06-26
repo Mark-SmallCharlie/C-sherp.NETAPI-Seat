@@ -1,19 +1,13 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WebApplication1.Models.Device;
 using WebApplication1.Controllers;
 using WebApplication1.Services.Interfaces;
 
-
-/**
- * DeviceController 负责处理设备相关的请求，
- * 包括获取设备状态、座位占用状态以及设备映射的设置和删除。
- * 它依赖于 IDeviceStatusService 来执行具体的设备操作逻辑，并使用 ILogger 记录重要事件和异常。
- * 控制器提供了统一的设备状态接口，简化了前端调用，同时也提供了专门的管理员接口，
- * 以满足不同场景的需求。
- */
 namespace WebApplication1.Controllers
 {
+    /// <summary>
+    /// 设备控制器 — 处理设备状态查询、座位占用状态、设备-座位映射等请求。
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
@@ -34,12 +28,12 @@ namespace WebApplication1.Controllers
             try
             {
                 var status = await _deviceStatusService.GetAllDeviceStatusAsync();
-                return Ok(new { success = true, data = status, message = "获取设备状态成功" });
+                return OkResponse(status, "获取设备状态成功");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取设备状态异常");
-                return StatusCode(500, new { success = false, message = "获取设备状态失败" });
+                return ServerErrorResponse("获取设备状态失败");
             }
         }
 
@@ -51,14 +45,14 @@ namespace WebApplication1.Controllers
                 var status = await _deviceStatusService.GetDeviceStatusAsync(deviceId);
                 if (status == null)
                 {
-                    return NotFound(new { success = false, message = "设备不存在或暂无数据" });
+                    return NotFoundResponse("设备不存在或暂无数据");
                 }
-                return Ok(new { success = true, data = status, message = "获取设备状态成功" });
+                return OkResponse(status, "获取设备状态成功");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取设备状态异常 - Device: {DeviceId}", deviceId);
-                return StatusCode(500, new { success = false, message = "获取设备状态失败" });
+                return ServerErrorResponse("获取设备状态失败");
             }
         }
 
@@ -68,12 +62,12 @@ namespace WebApplication1.Controllers
             try
             {
                 var status = await _deviceStatusService.GetSeatOccupancyStatusAsync();
-                return Ok(new { success = true, data = status, message = "获取座位占用状态成功" });
+                return OkResponse(status, "获取座位占用状态成功");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取座位占用状态异常");
-                return StatusCode(500, new { success = false, message = "获取座位占用状态失败" });
+                return ServerErrorResponse("获取座位占用状态失败");
             }
         }
 
@@ -85,18 +79,18 @@ namespace WebApplication1.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(new { success = false, message = "请求数据无效" });
+                    return BadRequestResponse("请求数据无效");
                 }
 
                 await _deviceStatusService.SetDeviceSeatMappingAsync(
                     request.DeviceId, request.SeatNumber, request.Location);
 
-                return Ok(new { success = true, message = "设置设备映射成功" });
+                return OkResponse<object>(null, "设置设备映射成功");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "设置设备映射异常 - Device: {DeviceId}", request.DeviceId);
-                return StatusCode(500, new { success = false, message = "设置设备映射失败" });
+                return ServerErrorResponse("设置设备映射失败");
             }
         }
 
@@ -109,14 +103,14 @@ namespace WebApplication1.Controllers
                 var result = await _deviceStatusService.RemoveDeviceSeatMappingAsync(deviceId);
                 if (!result)
                 {
-                    return NotFound(new { success = false, message = "设备映射不存在" });
+                    return NotFoundResponse("设备映射不存在");
                 }
-                return Ok(new { success = true, message = "移除设备映射成功" });
+                return OkResponse<object>(null, "移除设备映射成功");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "移除设备映射异常 - Device: {DeviceId}", deviceId);
-                return StatusCode(500, new { success = false, message = "移除设备映射失败" });
+                return ServerErrorResponse("移除设备映射失败");
             }
         }
 
@@ -125,13 +119,12 @@ namespace WebApplication1.Controllers
         {
             try
             {
-                // 返回一些基本信息
-                return Ok(new { success = true, message = "映射管理功能运行正常" });
+                return OkResponse<object>(null, "映射管理功能运行正常");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取设备映射列表异常");
-                return StatusCode(500, new { success = false, message = "获取设备映射列表失败" });
+                return ServerErrorResponse("获取设备映射列表失败");
             }
         }
     }
