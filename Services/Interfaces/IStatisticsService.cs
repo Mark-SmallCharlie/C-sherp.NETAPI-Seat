@@ -1,12 +1,11 @@
-﻿using WebApplication1.API.Services;
-using WebApplication1.Models.DTOs.Responses;
-using WebApplication1.Services;
-
+﻿using WebApplication1.Models.DTOs.Responses;
 
 namespace WebApplication1.Services.Interfaces;
 
-// 这是一个用于定义统计服务接口的代码文件。
-// IStatisticsService接口包含了获取每日统计数据、每月统计数据、座位利用率、热门座位以及用户活动等方法。
+/// <summary>
+/// 统计服务接口，包含每日/月度统计、座位利用率、热门座位、用户活跃度等方法。
+/// 所有响应类型定义在 Models/DTOs/Responses/StatisticsResponses.cs。
+/// </summary>
 public interface IStatisticsService
 {
     Task<StatisticsResponse> GetDailyStatisticsAsync(DateTime date);
@@ -15,20 +14,3 @@ public interface IStatisticsService
     Task<PopularSeatResponse> GetPopularSeatsAsync(int topN = 10);
     Task<UserActivityResponse> GetUserActivityAsync(int days = 30);
 }
-
-// 以下两个类已在 WebApplication1.Services 命名空间中统一定义（StatisticsService.cs 末尾），
-// 此处注释掉避免类型冲突导致显式接口实现抛 NotImplementedException。
-// public class StatisticsResponse
-// {
-//     public int TotalReservations { get; set; }
-//     public int ActiveReservations { get; set; }
-//     public int NewUsers { get; set; }
-//     public int PendingUsers { get; set; }
-// }
-//
-// public class SeatUtilizationResponse
-// {
-//     public Dictionary<int, double> UtilizationRates { get; set; } = new(); // 座位号 -> 利用率
-//     public double OverallUtilization { get; set; }
-// }
-
