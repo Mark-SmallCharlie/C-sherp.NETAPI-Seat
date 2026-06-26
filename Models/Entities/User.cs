@@ -27,11 +27,13 @@ namespace WebApplication1.Models.Entities
         [MaxLength(1000)]
         public string? AvatarUrl { get; set; } // 用户头像URL
 
-        /// <summary>账号密码注册时写入 SHA256 十六进制哈希；微信用户可为空。</summary>
-        [MaxLength(128)]
+        /// <summary>账号密码注册时写入 BCrypt 哈希；微信用户可为空。</summary>
+        [MaxLength(255)]
         public string? PasswordHash { get; set; }
 
         public int ViolationCount { get; set; } = 0; // 违约次数计数
+
+        public int GoodReservationStreak { get; set; } = 0; // 连续正常完成预约次数，用于衰减违规计数
 
         public DateTime? SuspendedUntil { get; set; } // 账号预约权限封禁截止时间
 

@@ -15,7 +15,7 @@ namespace WebApplication1.Models.Entities
         public string Username { get; set; } = string.Empty; // 登录用户名
 
         [Required, MaxLength(255)]
-        public string PasswordHash { get; set; } = string.Empty; // 哈希后的密码
+        public string PasswordHash { get; set; } = string.Empty; // BCrypt 哈希后的密码 (~60 chars)
 
         [Required, MaxLength(50)]
         public string DisplayName { get; set; } = string.Empty; // 显示名称
