@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Services.Interfaces;
 
@@ -28,6 +29,7 @@ public class AuthController : BaseController
     /// 小程序可只调用此接口，无需区分管理员与普通用户。
     /// </summary>
     [HttpPost("login")]
+    [EnableRateLimiting("AuthPolicy")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         try
@@ -64,6 +66,7 @@ public class AuthController : BaseController
     }
 
     [HttpPost("admin-login")]
+    [EnableRateLimiting("AuthPolicy")]
     public async Task<IActionResult> AdminLogin([FromBody] LoginRequest request)
     {
         try
@@ -91,6 +94,7 @@ public class AuthController : BaseController
     }
 
     [HttpPost("wechat-login")]
+    [EnableRateLimiting("AuthPolicy")]
     public async Task<IActionResult> WechatLogin([FromBody] WechatLoginRequest request)
     {
         try
