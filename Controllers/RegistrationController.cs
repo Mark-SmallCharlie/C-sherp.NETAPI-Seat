@@ -1,4 +1,4 @@
-//此类做为微信小程序注册类,负责处理用户注册请求，调用用户服务进行注册逻辑处理，并返回相应的结果。
+//锟斤拷锟斤拷锟斤拷为微锟斤拷小锟斤拷锟斤拷注锟斤拷锟斤拷,锟斤拷锟斤拷锟斤拷锟矫伙拷注锟斤拷锟斤拷锟襟，碉拷锟斤拷锟矫伙拷锟斤拷锟斤拷锟斤拷锟阶拷锟斤拷呒锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟接︼拷慕锟斤拷锟斤拷
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
