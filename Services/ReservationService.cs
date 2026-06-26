@@ -18,17 +18,19 @@ public class ReservationService : IReservationService
     private readonly AppDbContext _context;
     private readonly ILogger<ReservationService> _logger;
     private readonly IDeviceStatusService _deviceStatusService;
+    private readonly INotificationService _notificationService;
 
     // 引入基于内存的并发锁（SemaphoreSlim），按座位号（SeatNumber）划分细粒度锁。
-    // 用于防止高并发场景下，多个请求同时预约同一个座位导致的“超卖/重叠预约”问题。
+    // 用于防止高并发场景下，多个请求同时预约同一个座位导致的”超卖/重叠预约”问题。
     // 注：若后续系统横向扩展为多实例/微服务架构，可将此替换为基于 Redis 的分布式锁（如 Redlock）。
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, SemaphoreSlim> _seatLocks = new();
 
-    public ReservationService(AppDbContext context, ILogger<ReservationService> logger, IDeviceStatusService deviceStatusService)
+    public ReservationService(AppDbContext context, ILogger<ReservationService> logger, IDeviceStatusService deviceStatusService, INotificationService notificationService)
     {
         _context = context;
         _logger = logger;
         _deviceStatusService = deviceStatusService;
+        _notificationService = notificationService;
     }
 
     public async Task<Reservation?> CreateReservationAsync(CreateReservationRequest request, int userId)
@@ -58,10 +60,10 @@ public class ReservationService : IReservationService
             }
 
             // 【修改后】允许最多 5 分钟的误差
-            if (request.StartTime < DateTime.Now.AddMinutes(-5))
+            if (request.StartTime < DateTime.UtcNow.AddMinutes(-5))
             {
                 _logger.LogWarning("预约时间无效 - 不能预约过去的时间 (请求时间: {StartTime}, 服务器当前时间: {Now})",
-                    request.StartTime, DateTime.Now);
+                    request.StartTime, DateTime.UtcNow);
                 return null;
             }
 
@@ -97,6 +99,14 @@ public class ReservationService : IReservationService
             await RecordSeatStatusChangeAsync(request.SeatNumber, true);
 
             _logger.LogInformation("预约创建成功 - ID: {ReservationId}", reservation.Id);
+
+            // 发送通知
+            await _notificationService.CreateNotificationAsync(userId,
+                "预约创建成功",
+                $"您已成功预约座位 {request.SeatNumber}，时间：{request.StartTime:yyyy-MM-dd HH:mm} 至 {request.EndTime:yyyy-MM-dd HH:mm}。请按时到达并签到。",
+                NotificationType.ReservationStart,
+                reservation.Id);
+
             return reservation;
         }
         catch (DbUpdateException dbEx)
@@ -300,7 +310,7 @@ public class ReservationService : IReservationService
         {
             var activeReservations = await _context.Reservations
                 .Include(r => r.User)
-                .Where(r => r.Status == ReservationStatus.Active && r.EndTime > DateTime.Now)
+                .Where(r => r.Status == ReservationStatus.Active && r.EndTime > DateTime.UtcNow)
                 .OrderBy(r => r.StartTime)
                 .ToListAsync();
 
@@ -317,7 +327,7 @@ public class ReservationService : IReservationService
     {
         try
         {
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             var expiredReservations = reservations
                 .Where(r => r.Status == ReservationStatus.Active && r.EndTime <= now)
                 .ToList();
@@ -327,6 +337,18 @@ public class ReservationService : IReservationService
                 foreach (var reservation in expiredReservations)
                 {
                     reservation.Status = ReservationStatus.Completed;
+
+                    // -- 良好行为衰减：每连续完成 5 次预约，违规计数 -1 --
+                    if (reservation.User != null)
+                    {
+                        reservation.User.GoodReservationStreak++;
+                        if (reservation.User.GoodReservationStreak % 5 == 0 && reservation.User.ViolationCount > 0)
+                        {
+                            reservation.User.ViolationCount--;
+                            _logger.LogInformation("用户 {UserId} 连续正常完成 {Streak} 次预约，违规次数衰减至 {Count}",
+                                reservation.User.Id, reservation.User.GoodReservationStreak, reservation.User.ViolationCount);
+                        }
+                    }
                 }
 
                 await _context.SaveChangesAsync();
@@ -406,7 +428,16 @@ public class ReservationService : IReservationService
                     if (reservation.User != null)
                     {
                         reservation.User.ViolationCount++;
-                        _logger.LogWarning("用户 {UserId} 触发占座违规，当前违规次数: {Count}", reservation.User.Id, reservation.User.ViolationCount);
+                        reservation.User.GoodReservationStreak = 0; // 违规时重置良好记录
+                        _logger.LogWarning("用户 {UserId} 触发占座违规，当前违规次数: {Count}，良好连续记录已清零",
+                            reservation.User.Id, reservation.User.ViolationCount);
+
+                        // 发送强制释放通知
+                        await _notificationService.CreateNotificationAsync(reservation.User.Id,
+                            "座位已被释放",
+                            $"您预约的座位 {reservation.SeatNumber} 因超时未落座已被系统强制释放。当前违规次数：{reservation.User.ViolationCount}/3。",
+                            NotificationType.ForceReleased,
+                            reservation.Id);
 
                         // 假设 3 次违规，封禁 3 天
                         if (reservation.User.ViolationCount >= 3)
@@ -414,6 +445,13 @@ public class ReservationService : IReservationService
                             reservation.User.SuspendedUntil = now.AddDays(3);
                             reservation.User.ViolationCount = 0; // 封禁后重置计数
                             _logger.LogWarning("用户 {UserId} 触发多次违规，已冻结预约权限至 {SuspendedUntil}", reservation.User.Id, reservation.User.SuspendedUntil);
+
+                            // 发送封禁通知
+                            await _notificationService.CreateNotificationAsync(reservation.User.Id,
+                                "预约权限已被冻结",
+                                $"因累计违规 3 次，您的预约权限已被冻结至 {reservation.User.SuspendedUntil.Value.ToLocalTime():yyyy-MM-dd HH:mm}。",
+                                NotificationType.Suspended,
+                                reservation.Id);
                         }
                     }
 

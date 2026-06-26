@@ -1,11 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 using WebApplication1.Data;
 using WebApplication1.Models.Entities;
-using WebApplication1.Services.Interfaces;
 using WebApplication1.Models.DTOs.Responses;
-using System.Reflection.Metadata.Ecma335;
+using WebApplication1.Services.Interfaces;
 
 /** 这是一个用于实现统计服务的代码文件。
  * 此类使用了 Entity Framework Core 来查询数据库中的预约和用户数据，并计算各种统计信息，如每日统计、月度统计、座位利用率、热门座位和用户活跃度。
@@ -322,71 +320,6 @@ public class StatisticsService : IStatisticsService
         }
     }
 
-    // 显式接口实现已注释：因 IStatisticsService 返回类型已统一为 Services 命名空间下的类型，
-    // 公共方法可直接作为隐式实现，无需以下显式实现（原实现会抛 NotImplementedException）。
-    // Task<Interfaces.StatisticsResponse> IStatisticsService.GetDailyStatisticsAsync(DateTime date)
-    // {
-    //     throw new NotImplementedException();
-    // }
-    //
-    // Task<Interfaces.StatisticsResponse> IStatisticsService.GetMonthlyStatisticsAsync(int year, int month)
-    // {
-    //     throw new NotImplementedException();
-    // }
-    //
-    // Task<Interfaces.SeatUtilizationResponse> IStatisticsService.GetSeatUtilizationAsync()
-    // {
-    //     throw new NotImplementedException();
-    // }
 }
 
-// 扩展的统计响应类
-public class StatisticsResponse
-{
-    public int TotalReservations { get; set; }
-    public int ActiveReservations { get; set; }
-    public int NewUsers { get; set; }
-    public int PendingUsers { get; set; }
-    public DateTime? Date { get; set; }
-    public int? Year { get; set; }
-    public int? Month { get; set; }
-}
-
-public class SeatUtilizationResponse
-{
-    public Dictionary<int, double> UtilizationRates { get; set; } = new();       // 预约利用率（基于Reservations表）
-    public double OverallUtilization { get; set; }
-    public int TotalSeats { get; set; }
-    public int AnalyzedDays { get; set; }
-    public int TotalReservations { get; set; }
-    public Dictionary<int, double> ActualUtilizationRates { get; set; } = new(); // 实际使用率（基于SeatStatusHistory硬件数据）
-    public double OverallActualUtilization { get; set; }
-}
-
-public class PopularSeatResponse
-{
-    public List<PopularSeat> PopularSeats { get; set; } = new();
-    public DateTime AnalysisDate { get; set; }
-}
-
-public class PopularSeat
-{
-    public int SeatNumber { get; set; }
-    public int ReservationCount { get; set; }
-    public double TotalHours { get; set; }
-}
-
-public class UserActivityResponse
-{
-    public List<UserActivity> UserActivities { get; set; } = new();
-    public int PeriodDays { get; set; }
-    public int TotalActiveUsers { get; set; }
-}
-
-public class UserActivity
-{
-    public int UserId { get; set; }
-    public int ReservationCount { get; set; }
-    public double TotalHours { get; set; }
-    public DateTime LastActivity { get; set; }
-}
+// 统计响应类已移至 Models/DTOs/Responses/StatisticsResponses.cs
