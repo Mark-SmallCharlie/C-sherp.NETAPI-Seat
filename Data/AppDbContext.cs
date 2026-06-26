@@ -18,6 +18,8 @@ namespace WebApplication1.Data
         public DbSet<Reservation> Reservations { get; set; }
         public DbSet<SeatStatusHistory> SeatStatusHistories { get; set; }
         public DbSet<AdminUser> AdminUsers { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<WaitlistEntry> WaitlistEntries { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -31,19 +33,8 @@ namespace WebApplication1.Data
             modelBuilder.Entity<Reservation>()
                 .HasIndex(r => new { r.SeatNumber, r.StartTime, r.EndTime }); // 复合索引用于快速查找冲突
 
-            // 可以在这里添加初始管理员账户（种子数据）
-            modelBuilder.Entity<AdminUser>().HasData(
-                new AdminUser
-                {
-                    Id = 1,
-                    Username = "admin",
-                    // 密码是 "admin123" 的哈希值 (仅供演示，生产环境应用更安全的方法)
-                    PasswordHash = "240BE518FABD2724DDB6F04EEB1DA5967448D7E831C08C8FA822809F74C720A9",
-                    DisplayName = "系统管理员",
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
-                }
-            );
+            // 管理员账户由 DbInitializer 在运行时创建，不使用 HasData 种子数据
+            // （BCrypt 哈希值每次不同，无法在编译时硬编码）
         }
     }
 }
