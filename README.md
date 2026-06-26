@@ -1,4 +1,57 @@
 # 更新：
+Master --更新 6.26（安全加固 + 代码质量 + 功能扩展）：
+**安全加固（问题1-5）**
+ * 1. JWT Key 与微信 AppSecret 从 appsettings.json 中移除，改用 dotnet user-secrets 存储，Program.cs 启动时校验 JWT Key 长度（≥16字符）；
+ * 2. 密码哈希从 SHA256 替换为 BCrypt（`BCrypt.Net-Next`），自带盐值防彩虹表攻击；
+ * 3. CORS 改为从配置读取 `AllowedOrigins`（支持 `*` 或逗号分隔的域名列表），不再硬编码 `AllowAll`；
+ * 4. 添加 ASP.NET Core 内置速率限制：`AuthPolicy`（每分钟每 IP 最多 10 次）、`ReservationPolicy`（每分钟每 IP 最多 20 次）；
+ * 5. DbInitializer 替代 `HasData()` 种子数据（BCrypt 非确定性哈希不兼容编译时种子），在运行时创建默认管理员。
+**代码质量（问题1-5）**
+ * 6. 所有 `DateTime.Now` 统一替换为 `DateTime.UtcNow`（ReservationService、ReservationMonitorBackgroundService 等）；
+ * 7. RegistrationController 继承 BaseController，使用标准化响应格式（OkResponse/BadRequestResponse），Console.WriteLine 改为 ILogger；
+ * 8. DTO 内联类提取到独立文件：`CancelReservationRequest.cs`、`CheckConflictRequest.cs` → Models/DTOs/Requests/；`StatisticsResponses.cs` → Models/DTOs/Responses/；
+ * 9. DeviceController 匿名响应对象统一改为 BaseController 标准化响应方法（OkResponse、NotFoundResponse 等）；
+ * 10. IStatisticsService/StatisticsService 清理未使用的 using、注释掉的重复代码。
+**功能 #3：消息推送系统**
+ * 11. 新增 `Notification` 实体（7 种通知类型：ReservationStart/TimeoutWarning/ForceReleased/Suspended/BanExpired/SystemMessage/WaitlistAvailable），AppDbContext 添加 DbSet<Notification>；
+ * 12. 新增 `INotificationService` 接口与 `NotificationService` 实现（创建通知、按用户查询、未读筛选、标记已读）；
+ * 13. 新增 `NotificationController`（GET my-notifications、GET unread-count、PUT {id}/read、PUT read-all）；
+ * 14. 6 个通知触发点：预约创建成功、强制释放警告、冻结封禁通知、暂离即将超时（5分钟预警）、封禁到期解封通知、候补可用通知。
+**功能 #4：排队候补机制**
+ * 15. 新增 `WaitlistEntry` 实体（5 种状态：Waiting/Notified/Confirmed/Expired/Cancelled），AppDbContext 添加 DbSet<WaitlistEntry>；
+ * 16. 新增 `IWaitlistService` 接口与 `WaitlistService` 实现（加入候补、确认候补→自动创建预约、取消候补、取消预约时自动推进队列）；
+ * 17. ReservationController 新增 3 个候补端点：POST join-waitlist、POST confirm-waitlist/{id}、POST cancel-waitlist/{id}；取消预约时自动调用 PromoteWaitlistAsync；
+ * 18. ReservationMonitorBackgroundService 新增候补超时扫描：Notified 状态超过 15 分钟未确认 → 自动通知下一位候补者。
+**功能 #5：违规计数衰减**
+ * 19. User 实体新增 `GoodReservationStreak` 字段（连续正常完成预约计数）；
+ * 20. ReservationService：每次正常完成预约 → GoodReservationStreak++，每满 5 次 → ViolationCount -= 1（最小为 0）；发生违规时 Streak 归零。
+**其他优化**
+ * 21. ReservationMonitorBackgroundService 轮询间隔从 5 分钟改为 1 分钟，新增 4 个子任务：超时释放、暂离预警、封禁解封、候补超时处理。
+ * 22. Csproj 添加 `BCrypt.Net-Next` NuGet 包依赖。
+
+Master --更新 6.26（代码审查 — 已知待修复问题）：
+以下为最新版本代码的自我审查缺陷，按影响程度排列，后续逐一修改。
+
+🔴 影响较大：
+ * 1.【数据库迁移缺失】Program.cs 用 EnsureCreated() 而非 Migrate()，旧版数据库不会新增表/字段，运行时 SQL 报错。迁移已生成但被注释，部署前需解决。
+ * 2.【密码哈希不兼容】SHA256→BCrypt 后旧用户密码全部失效无法登录，缺少兼容迁移逻辑（BCrypt 验证失败→回退 SHA256→自动升级为 BCrypt）。
+ * 3.【违规衰减触发时机】GoodReservationStreak 递增写在 UpdateExpiredReservationsAsync，仅用户查预约时才调用。不查预约则永远不会标记 Completed，Streak 永远不涨。应改为后台定时任务自动触发。
+ * 4.【候补确认非原子操作】ConfirmWaitlistAsync 冲突检查→创建预约之间有时间窗口，极端并发下可能被其他用户抢占。
+
+🟡 影响中等：
+ * 5.【暂离预警重复通知】CheckLeaveExpiringAsync 每分钟扫描一次，同一个暂离预约可能被连续发送 5 次预警通知，缺少去重标记。
+ * 6.【封禁解封检查窗口过窄】仅扫描 SuspendedUntil 在过去 2 分钟内的用户，后台宕机超过 2 分钟则解封通知丢失。解封后 SuspendedUntil 未归 null。
+ * 7.【候补位置不重排】用户取消候补后 QueuePosition 出现空洞，虽然排序正常但显示给用户的排位不准确。
+ * 8.【候补匹配粒度粗】按 SeatNumber+StartTime+EndTime 精确匹配，时间差 5 分钟的两条预约不在同一队列，取消一个不会触发另一个候补。
+
+🟢 影响较小：
+ * 9.【通知表无限增长】无定期清理旧通知机制，长期数据库性能会下降。
+ * 10.【速率限制未穿透代理】使用 RemoteIpAddress 做 Key，前面有 Nginx/K8s Ingress 时所有 IP 相同，限制变成全局。未读 X-Forwarded-For 头。
+ * 11.【预约即将开始通知未实现】NotificationType 枚举定义了 ReservationStart，但代码中未触发。
+ * 12.【取消+推进候补无事务】CancelReservation 中预约取消成功→推进候补失败时无回滚，预约已丢但候补未通知，两边受损。
+ * 13.【候补队列无上限】热门时段可无限排队。
+ * 14.【违规衰减无通知】ViolationCount 减少时未告知用户。
+
 Master --更新 5.13：
 * 1.引入分布式锁（如基于 Redis 的 Redlock）锁住具体的 SeatNumber，
 *  2.（待补充）或者在 EF Core 中对座位表添加乐观并发控制（Concurrency Token / RowVersion），确保同一时间只有一个预约能落库成功，彻底解决高并发预约冲突问题。
@@ -85,27 +138,27 @@ Master --更新 4.11：
 ```text
 C-sherp.NETAPI-Seat/
 ├── .github/                    # GitHub 相关配置（如 Actions 工作流）
-├── Controllers/                # API 控制器
-├── Data/                       # 数据库上下文与初始化
+├── Controllers/                # API 控制器（Auth/Base/Device/Notification/Registration/Reservation/Statistics/User/WeatherForecast）
+├── Data/                       # 数据库上下文（AppDbContext）与初始化（DbInitializer）
 ├── Migrations/                 # EF Core 迁移
 ├── Models/
-│   ├── Device/                 # 设备模型
+│   ├── Device/                 # 设备模型（DeviceStatus、DeviceSeatMapping）
 │   ├── DTOs/                   # 请求/响应 DTO
-│   │   ├── Requests/           # 请求参数模型
-│   │   └── Responses/          # 响应数据模型
-│   ├── Entities/               # 数据库实体
-│   └── Mqtt/                   # MQTT 相关模型（保留）
+│   │   ├── Requests/           # 请求参数模型（Login/CreateReservation/WechatLogin/Register/ApproveUser/CancelReservation/CheckConflict 等）
+│   │   └── Responses/          # 响应数据模型（Login/ApiResponse/UserInfo/Statistics 等）
+│   ├── Entities/               # 数据库实体（User/Reservation/AdminUser/SeatStatusHistory/Notification/WaitlistEntry）
+│   └── Mqtt/                   # MQTT 相关模型（保留作参考）
 ├── pages/                      # 微信小程序页面（index/login）
-├── Properties/                 # 项目配置（如 launchSettings.json）
-├── Security/                   # 安全相关工具（如 PasswordHasher）
+├── Properties/                 # 项目配置（launchSettings.json 等）
+├── Security/                   # 安全相关工具（PasswordHasher — BCrypt 哈希）
 ├── Services/
-│   ├── Interfaces/             # 服务接口定义
-│   ├── Mqtt/                   # MQTT 服务（保留）
+│   ├── Interfaces/             # 服务接口定义（IAuth/IUser/IReservation/IStatistics/IDeviceStatus/INotification/IWaitlist 等）
+│   ├── Mqtt/                   # MQTT 服务（保留作参考）
 │   └── OneNet/                 # OneNet HTTP 轮询服务
-│   └── 其他Service服务类       # 不做为单独目录的服务类（如统计服务、认证服务等）
-├── WeChatApp/                  # 小程序相关目录
-├── Program.cs                  # 启动入口与依赖注入
-└── appsettings*.json           # 配置文件
+│   └── 其他 Service 服务类     # 不做为单独目录的服务类（Auth/User/Reservation/Statistics/DeviceStatus/Notification/Waitlist 等）
+├── WeChatApp/                  # 小程序主入口（app.js）
+├── Program.cs                  # 启动入口与依赖注入（速率限制/JWT验证/CORS/服务注册/数据库初始化）
+└── appsettings*.json           # 配置文件（敏感信息通过 User Secrets 管理）
 ```
 
 ---
@@ -232,10 +285,11 @@ dotnet run
   - 接收`RegisterRequest`类型的请求体（DTO）。
   - 验证模型合法性（`ModelState.IsValid`）。
   - 调用`IUserService.RegisterAsync()`完成注册逻辑。
-  - 根据服务返回结果，返回成功（200）或失败（400）响应。
+  - 根据服务返回结果，返回成功或失败响应（使用 BaseController 标准化方法）。
 
 #### 设计特点：
-- 未继承`BaseController`（响应格式未标准化，直接返回`BadRequest(ModelState)`/`Ok(result)`）。
+- 继承`BaseController`，使用标准化响应格式（`OkResponse`/`BadRequestResponse`/`ServerErrorResponse`）。
+- 注入 `ILogger<RegistrationController>`，日志记录替代原有的 `Console.WriteLine`。
 - 依赖`IUserService`接口，解耦业务逻辑（符合依赖注入/面向接口编程）。
 
 ---
@@ -255,7 +309,8 @@ dotnet run
 #### 设计特点：
 - 集成日志（`ILogger`），记录登录/验证的关键行为与异常。
 - 标准化响应（复用`BaseController`的`OkResponse`/`UnauthorizedResponse`等）。
-- 区分管理员/普通用户登录逻辑，支持微信登录的“待审核”业务场景。
+- 区分管理员/普通用户登录逻辑，支持微信登录的”待审核”业务场景。
+- 登录接口启用速率限制（`[EnableRateLimiting(“AuthPolicy”)]`），每分钟每 IP 最多 10 次请求。
 
 ---
 
@@ -285,25 +340,32 @@ dotnet run
 
 ### 5. `ReservationController`（预约控制器）
 **文件路径**：Controllers/ReservationController.cs  
-**核心定位**：处理座位预约的创建、取消、查询、冲突检测等，继承`BaseController`，需登录认证。  
+**核心定位**：处理座位预约的创建、取消、查询、冲突检测、暂离/返回、候补排队等，继承`BaseController`，需登录认证。  
 
 #### 核心功能：
 | 方法 | 路由 | 权限 | 功能 |
 |------|------|------|------|
-| `CreateReservation()` | `POST api/Reservation/create` | 登录用户 | 创建预约（关联用户ID，校验时间/座位冲突） |
-| `CancelReservation()` | `POST api/Reservation/cancel/{reservationId}` | 登录用户（管理员可取消任意预约） | 取消预约，管理员可添加备注 |
+| `CreateReservation()` | `POST api/Reservation/create` | 登录用户（限流） | 创建预约（关联用户ID，校验时间/座位冲突） |
+| `CancelReservation()` | `POST api/Reservation/cancel/{reservationId}` | 登录用户（管理员可取消任意预约） | 取消预约，自动推进候补队列 |
 | `GetMyReservations()` | `GET api/Reservation/my-reservations` | 登录用户 | 获取当前用户的所有预约 |
 | `GetAllReservations()` | `GET api/Reservation/all-reservations` | 仅管理员 | 获取所有预约列表 |
-| `GetActiveReservations()` | `GET api/Reservation/active-reservations` | 仅管理员 | 获取活跃（未结束）预约列表 |
+| `GetActiveReservations()` | `GET api/Reservation/active-reservations` | 登录用户 | 获取活跃（未结束）预约列表 |
 | `CheckSeatConflict()` | `POST api/Reservation/check-conflict` | 登录用户 | 检测指定座位+时间段是否存在预约冲突 |
+| `SetTemporaryLeave()` | `POST api/Reservation/temp-leave/{reservationId}` | 登录用户 | 设置暂离（默认15分钟），期间硬件自动释放暂停 |
+| `ReturnFromLeave()` | `POST api/Reservation/return-leave/{reservationId}` | 登录用户 | 提前结束暂离状态 |
+| `JoinWaitlist()` | `POST api/Reservation/join-waitlist` | 登录用户 | 加入候补队列（需确认座位有冲突） |
+| `ConfirmWaitlist()` | `POST api/Reservation/confirm-waitlist/{waitlistId}` | 登录用户 | 确认候补名额，自动创建预约 |
+| `CancelWaitlist()` | `POST api/Reservation/cancel-waitlist/{waitlistId}` | 登录用户 | 主动取消候补排队 |
 
 #### 附属DTO：
+- `CreateReservationRequest`：创建预约请求（座位号、开始/结束时间）。
 - `CancelReservationRequest`：取消预约请求（管理员备注）。
 - `CheckConflictRequest`：冲突检测请求（座位号、开始/结束时间、排除的预约ID）。
 
 #### 设计特点：
 - 区分普通用户/管理员权限（管理员可操作所有预约，普通用户仅操作自己的）。
-- 核心业务校验（预约冲突、预约存在性、操作权限）。
+- 核心业务校验（预约冲突、预约存在性、操作权限、封禁状态检查）。
+- 候补与预约联动：取消预约时自动推进候补队列；确认候补时自动创建预约。
 - 详细的日志记录（预约ID、用户ID、操作类型）。
 
 ---
@@ -349,11 +411,31 @@ dotnet run
 #### 设计特点：
 - 设备与座位解耦（通过映射关联），适配物联网场景。
 - 部分接口未完全实现（如`GetDeviceMappings`仅返回提示），预留扩展空间。
+- 响应格式统一使用 BaseController 标准化方法（OkResponse、NotFoundResponse 等）。
 - 异常日志记录设备操作的失败原因。
 
 ---
 
-### 8. `WeatherForecastController`（天气预测控制器）
+### 8. `NotificationController`（通知控制器）
+**文件路径**：Controllers/NotificationController.cs  
+**核心定位**：处理用户通知的查询与已读标记，继承`BaseController`，需登录认证。  
+
+#### 核心功能：
+| 方法 | 路由 | 权限 | 功能 |
+|------|------|------|------|
+| `GetMyNotifications()` | `GET api/Notification/my-notifications` | 登录用户 | 获取当前用户的通知列表（含未读数量），支持 unreadOnly 筛选 |
+| `GetUnreadCount()` | `GET api/Notification/unread-count` | 登录用户 | 获取当前用户的未读通知数量 |
+| `MarkAsRead()` | `PUT api/Notification/{id}/read` | 登录用户 | 标记指定通知为已读（校验归属） |
+| `MarkAllAsRead()` | `PUT api/Notification/read-all` | 登录用户 | 标记当前用户所有通知为已读 |
+
+#### 设计特点：
+- 返回最近 100 条通知（按创建时间降序）。
+- 通知归属校验：用户只能操作自己的通知。
+- 支持 7 种通知类型：ReservationStart（预约开始）/ TimeoutWarning（暂离预警）/ ForceReleased（强制释放）/ Suspended（冻结封禁）/ BanExpired（封禁解除）/ SystemMessage（系统消息）/ WaitlistAvailable（候补可用）。
+
+---
+
+### 9. `WeatherForecastController`（天气预测控制器）
 **文件路径**：Controllers/WeatherForecastController.cs  
 **核心定位**：ASP.NET Core默认生成的示例控制器，无业务意义。  
 
@@ -367,11 +449,13 @@ dotnet run
 ---
 
 ### 整体设计总结
-1. **分层与复用**：通过`BaseController`封装公共逻辑，子类专注业务，符合DRY原则。
-2. **权限控制**：区分匿名/登录用户/管理员，通过`[Authorize]`+角色校验实现精细化权限。
-3. **标准化**：统一响应格式、日志记录、异常处理，提升代码可维护性。
-4. **解耦**：依赖服务接口（如`IUserService`/`IReservationService`），而非具体实现，便于测试和扩展。
-5. **业务适配**：贴合“预约系统”核心场景（用户审核、座位预约、设备管理、统计分析），覆盖C端（用户）和B端（管理员）需求。
+1. **分层与复用**：通过`BaseController`封装公共逻辑（身份提取、标准化响应），子类专注业务，符合DRY原则。
+2. **权限控制**：区分匿名/登录用户/管理员，通过`[Authorize]`+角色校验实现精细化权限；敏感接口启用速率限制（AuthPolicy/ReservationPolicy）。
+3. **标准化**：统一响应格式（`ApiResponse<T>` / BaseController 响应方法）、日志记录（ILogger）、异常处理，提升代码可维护性。
+4. **解耦**：依赖服务接口（如`IUserService`/`IReservationService`/`INotificationService`/`IWaitlistService`），而非具体实现，便于测试和扩展。
+5. **业务适配**：贴合”预约系统”核心场景（用户审核、座位预约、设备管理、统计分析、消息通知、候补排队），覆盖C端（用户）和B端（管理员）需求。
+6. **安全加固**：JWT密钥/AppSecret 使用 User Secrets 管理、BCrypt 密码哈希、速率限制、CORS 可配置。
+7. **数据一致性**：所有时间统一使用 `DateTime.UtcNow`，避免时区差异导致的逻辑错误。
 
 ## 2.Data
 
@@ -386,10 +470,12 @@ dotnet run
   - `DbSet<Reservation> Reservations`：预约记录表
   - `DbSet<SeatStatusHistory> SeatStatusHistories`：座位状态历史表
   - `DbSet<AdminUser> AdminUsers`：管理员用户表
+  - `DbSet<Notification> Notifications`：通知消息表
+  - `DbSet<WaitlistEntry> WaitlistEntries`：候补排队表
 - **OnModelCreating 方法**：重写基类方法，用于配置实体模型的额外规则：
   - 为 `User` 实体的 `OpenId` 字段配置**唯一索引**，确保每个用户的 OpenId 不重复；
   - 为 `Reservation` 实体配置**复合索引**（SeatNumber + StartTime + EndTime），优化座位预约冲突的查询效率；
-  - 为 `AdminUser` 配置**种子数据**：初始化一个默认管理员账户（用户名 `admin`，密码哈希对应 `admin`，仅演示用）。
+  - 管理员账户不再使用 `HasData()` 种子数据（BCrypt 每次生成不同哈希值，编译期种子的验证逻辑已失效），改由 `DbInitializer` 运行时创建。
 
 ### 2. DbInitializer 类（Data/DbInitializer.cs）
 `DbInitializer` 是静态工具类，用于数据库初始化，核心作用是确保数据库创建完成，并初始化基础数据（如默认管理员账户）。
@@ -398,20 +484,16 @@ dotnet run
 - **静态方法 InitializeAsync**：异步初始化数据库的入口方法：
   - 调用 `context.Database.EnsureCreatedAsync()`：确保数据库存在（若不存在则创建，仅在数据库首次启动时生效）；
   - 检查 `AdminUsers` 表是否已有数据：若为空，则创建默认管理员账户并写入数据库；
-- **私有静态方法 HashPassword**：密码哈希工具方法：
-  - 使用 SHA256 算法对明文密码进行哈希处理；
-  - 将哈希后的字节数组转换为十六进制字符串返回，避免明文密码存储（注：生产环境建议使用更安全的哈希方案，如 BCrypt）。
+- **密码哈希**：使用 `PasswordHasher.Hash()`（BCrypt 算法）对管理员密码进行哈希处理，自带盐值防彩虹表攻击。
 
 ### 两类的核心协作关系
-1. `AppDbContext` 定义了数据库的“结构规则”（表映射、索引、种子数据）；
-2. `DbInitializer` 负责“数据初始化”（确保库创建、补充基础数据）；
+1. `AppDbContext` 定义了数据库的”结构规则”（表映射、索引）；
+2. `DbInitializer` 负责”数据初始化”（确保库创建、补充基础数据）；
 3. 两者结合：既保证数据库表结构符合业务规则，又确保系统启动时拥有必要的初始数据（如默认管理员）。
 
 ### 补充说明
-- 种子数据（`OnModelCreating` 中的 `HasData`）与 `DbInitializer` 的管理员初始化是两种不同的初始化方式：
-  - `HasData` 是 EF Core 迁移（Migration）时生效，写入数据库架构；
-  - `DbInitializer` 是程序运行时检查并写入，更灵活，适合动态初始化；
-- 密码哈希仅为演示：SHA256 是不可逆哈希，但无“盐值”（Salt），生产环境需搭配盐值或使用 `PasswordHasher<T>` 等专用工具。
+- 管理员初始化由 `DbInitializer` 在程序运行时完成，而非 `HasData()` 迁移种子数据。原因是密码改用 BCrypt 哈希后每次哈希结果不同，无法在编译期硬编码。
+- BCrypt 是当前业界推荐的密码哈希算法，自带盐值（Salt），可有效防止彩虹表攻击。
 
 以下是对该代码库中各文件夹下类的详细介绍，按文件路径分类说明：
 
@@ -479,6 +561,13 @@ dotnet run
   - `Role`：用户角色（字符串）
   - `DisplayName`：显示名称（用于管理员，默认空字符串）
 
+#### 7. `StatisticsResponse` / `SeatUtilizationResponse` / `PopularSeatResponse` / `UserActivityResponse`
+- **作用**：封装统计数据相关的响应数据（独立于 StatisticsService，存放在 Models/DTOs/Responses/StatisticsResponses.cs）
+- **StatisticsResponse**：日/月统计（预约总数、活跃数、新用户数、待审核数、日期/年月）
+- **SeatUtilizationResponse**：座位利用率（预约利用率字典、硬件实际使用率字典、整体利用率、分析天数等）
+- **PopularSeatResponse**：热门座位（`List<PopularSeat>`，每条含座位号、预约次数、总时长）
+- **UserActivityResponse**：用户活跃度（`List<UserActivity>`，每条含用户ID、预约次数、总时长、最后活跃时间）
+
 ### 二、Models/DTOs/Requests（请求类DTO）
 该目录下的类主要用于接收前端传入的请求参数，标准化入参格式。
 
@@ -503,17 +592,27 @@ dotnet run
   - `SeatNumber`：座位编号（int）
   - `StartTime`：预约开始时间（DateTime）
   - `EndTime`：预约结束时间（DateTime）
-  - `Username`：用户名（默认空字符串）
-  - `Password`：密码（默认空字符串）
-  - `DisplayName`：显示名称（默认空字符串）
 
-#### 4. `ApproveUserRequest`
+#### 4. `CancelReservationRequest`
+- **作用**：接收取消预约的请求参数
+- **核心属性**：
+  - `AdminNote`：管理员取消时的备注（可选）
+
+#### 5. `CheckConflictRequest`
+- **作用**：接收座位冲突检测的请求参数（也用于加入候补时传参）
+- **核心属性**：
+  - `SeatNumber`：座位编号（int）
+  - `StartTime`：开始时间（DateTime）
+  - `EndTime`：结束时间（DateTime）
+  - `ExcludeReservationId`：排除的预约ID（int?，检测时排除自身）
+
+#### 6. `ApproveUserRequest`
 - **作用**：接收管理员审核用户的请求参数
 - **核心属性**：
   - `Approve`：是否通过审核（bool）
   - `Note`：审核备注（可选）
 
-#### 5. `LoginRequest`
+#### 7. `LoginRequest`
 - **作用**：接收普通账号密码登录的请求参数
 - **核心属性**：
   - `Username`：用户名（默认空字符串）
@@ -594,7 +693,11 @@ dotnet run
   - `NickName`：昵称（必填，最大长度50）
   - `Role`：用户角色（`UserRole`枚举，默认`Pending`）
   - `CreatedAt`：创建时间（必填，默认UTC当前时间）
-  - `AvatarUrl`：头像URL（可选，最大长度500）
+  - `AvatarUrl`：头像URL（可选，最大长度1000）
+  - `PasswordHash`：BCrypt 密码哈希（可选，最大长度255，微信用户可为空）
+  - `ViolationCount`：违规次数计数（int，默认0，满3次冻结3天）
+  - `GoodReservationStreak`：连续正常完成预约次数（int，默认0，每5次减1违规计数）
+  - `SuspendedUntil`：账号预约权限封禁截止时间（DateTime?，可选）
   - `Reservations`：导航属性（该用户的所有预约，默认空列表）
 - **枚举 `UserRole`**：
   - `Pending`：待审核
@@ -612,13 +715,54 @@ dotnet run
   - `EndTime`：预约结束时间（必填）
   - `Status`：预约状态（`ReservationStatus`枚举，默认`Active`）
   - `AdminNote`：管理员备注（可选）
+  - `LeaveEndTime`：用户暂离截止时间（DateTime?，期间硬件自动释放判定暂停）
   - `CreatedAt`：创建时间（必填，默认UTC当前时间）
-  - `User`：导航属性（所属用户，默认新User实例）
+  - `User`：导航属性（所属用户）
 - **枚举 `ReservationStatus`**：
   - `Active`：活跃/有效
   - `Completed`：已完成
   - `Cancelled`：用户取消
   - `ForceCancelled`：管理员强制取消
+
+#### 5. `Notification`（新增）
+- **作用**：用户通知消息实体（对应通知表）
+- **核心属性**（含数据验证+外键）：
+  - `Id`：主键（int，`[Key]`注解）
+  - `UserId`：接收用户ID（必填，`[ForeignKey("User")]`）
+  - `Title`：通知标题（必填，最大长度200）
+  - `Content`：通知内容（必填，最大长度1000）
+  - `Type`：通知类型（`NotificationType`枚举，默认`SystemMessage`）
+  - `IsRead`：是否已读（bool，默认false）
+  - `RelatedReservationId`：关联预约ID（int?，可选）
+  - `CreatedAt`：创建时间（必填，默认UTC当前时间）
+- **枚举 `NotificationType`**：
+  - `ReservationStart`：预约即将开始
+  - `TimeoutWarning`：暂离/超时预警
+  - `ForceReleased`：预约被强制释放
+  - `Suspended`：账号被冻结/封禁
+  - `BanExpired`：封禁已解除
+  - `SystemMessage`：系统消息
+  - `WaitlistAvailable`：候补可用通知
+
+#### 6. `WaitlistEntry`（新增）
+- **作用**：候补排队实体（对应候补表）
+- **核心属性**（含数据验证+外键）：
+  - `Id`：主键（int，`[Key]`注解）
+  - `UserId`：候补用户ID（必填，`[ForeignKey("User")]`）
+  - `SeatNumber`：座位编号（必填）
+  - `StartTime`：期望开始时间（必填）
+  - `EndTime`：期望结束时间（必填）
+  - `Status`：候补状态（`WaitlistStatus`枚举，默认`Waiting`）
+  - `QueuePosition`：排队位置（同座位+时段内排序）
+  - `NotifiedAt`：通知时间（DateTime?，可选）
+  - `ConfirmDeadline`：确认截止时间（DateTime?，超时自动顺延）
+  - `CreatedAt`：创建时间（必填，默认UTC当前时间）
+- **枚举 `WaitlistStatus`**：
+  - `Waiting`：排队中
+  - `Notified`：已通知（等待确认）
+  - `Confirmed`：已确认（转预约）
+  - `Expired`：确认超时
+  - `Cancelled`：用户主动取消
 
 以下是对该`Services`文件夹中各类文件（及子目录）的功能定位与核心职责介绍（基于常见业务系统的服务层设计逻辑，结合文件名语义推导）：
 
@@ -661,10 +805,45 @@ dotnet run
 - 典型功能：
   - 预约创建/取消/修改（如用户预约设备使用时间、校验预约冲突）；
   - 预约状态管理（待确认、已确认、已完成、已取消、超时未使用等状态流转）；
+  - 违规处分逻辑：`ReleaseTimeoutReservationsAsync` 中座位超 30 分钟未感知落座 → 强制释放 → ViolationCount++，满 3 次 → SuspendedUntil 设为 3 天后；同时 GoodReservationStreak 归零；
+  - 违规衰减逻辑：`UpdateExpiredReservationsAsync` 中正常完成预约 → GoodReservationStreak++，每连续 5 次 → ViolationCount -= 1（最小为 0）；
+  - 预约拦截：`CreateReservationAsync` 首行检查用户 SuspendedUntil，若封禁未到期则拒绝预约；
+  - 暂离保护：扫描时若 LeaveEndTime > 当前时间则跳过自动释放；
+  - 通知集成：创建预约、强制释放、封禁时通过 INotificationService 发送通知；
   - 预约提醒（如预约开始前推送通知、超时预约自动取消）；
   - 预约记录查询（按用户、设备、时间范围查询预约历史）。
+  - 所有时间使用 DateTime.UtcNow，确保时区一致性。
 
-### 6. Mqtt/ 子目录
+### 6. NotificationService.cs（新增）
+**核心职责**：通知消息的全生命周期管理。
+- 典型功能：
+  - `CreateNotificationAsync`：创建通知（指定用户ID、标题、内容、通知类型、关联预约ID）；
+  - `GetUserNotificationsAsync`：按用户查询通知（支持 unreadOnly 筛选，最多返回最近 100 条，按创建时间降序）；
+  - `GetUnreadCountAsync`：获取用户未读通知数量；
+  - `MarkAsReadAsync`：标记单条通知为已读（校验用户归属）；
+  - `MarkAllAsReadAsync`：标记用户所有未读通知为已读。
+- 通知触发点覆盖：预约创建成功、强制释放警告、冻结封禁通知、暂离即将超时（5分钟预警）、封禁到期解封通知、候补可用通知。
+
+### 7. WaitlistService.cs（新增）
+**核心职责**：候补排队机制的全流程管理。
+- 典型功能：
+  - `JoinWaitlistAsync`：加入候补队列（防重复排队，自动计算 QueuePosition = 当前最大位置 + 1）；
+  - `ConfirmWaitlistAsync`：确认候补名额（校验状态为 Notified 且未超时，再次检查座位冲突 → 自动调用 ReservationService 创建预约）；
+  - `CancelWaitlistAsync`：用户主动取消候补；
+  - `GetUserWaitlistAsync`：查询用户在指定座位时段的候补状态；
+  - `PromoteWaitlistAsync`：座位取消时推进队列 → 通知 Waiting 状态的第一位候补者，设 Status=Notified、ConfirmDeadline = now + 15 分钟。
+- 依赖：INotificationService（发送通知）+ IReservationService（创建预约），设计上通过 Controller 层编排避免循环依赖。所有时间使用 DateTime.UtcNow。
+
+### 8. ReservationMonitorBackgroundService（后台监控服务）
+**核心职责**：定时后台任务，监控预约状态并执行自动化操作。
+- 典型功能（每 1 分钟执行一次）：
+  - **超时释放**（子任务1）：调用 `ReleaseTimeoutReservationsAsync`，座位超 30 分钟未感知落座 → 强制释放 + 违规处分；
+  - **暂离预警**（子任务2）：检查 LeaveEndTime 在 5 分钟内到期的预约 → 发送 TimeoutWarning 通知提醒用户返回；
+  - **封禁解封**（子任务3）：检查 SuspendedUntil 刚过期的用户 → 发送 BanExpired 通知告知权限恢复；
+  - **候补超时**（子任务4）：扫描 Notified 状态且 ConfirmDeadline 已过的候补 → 标记为 Expired → 自动通知下一位候补者。
+- 通过 IServiceScopeFactory 创建作用域获取 Scoped 服务实例（IReservationService、INotificationService、AppDbContext）。
+
+### 9. Mqtt/ 子目录
 **核心定位**：MQTT物联网协议相关的服务封装（物联网场景下的设备通信核心）。
 - 典型内容：
   - MQTT客户端连接管理（如连接MQTT Broker、断线重连、客户端配置）；
@@ -672,26 +851,52 @@ dotnet run
   - 消息解析与转发（如将设备上报的二进制/JSON消息解析为业务模型，转发给`DeviceStatusService`）；
   - MQTT消息的QoS配置、消息缓存、异常消息处理等。
 
-### 7. Interfaces/ 子目录
-**核心定位**：服务层接口定义（遵循“面向接口编程”设计原则）。
+### 10. Interfaces/ 子目录
+**核心定位**：服务层接口定义（遵循”面向接口编程”设计原则）。
 - 典型内容：
-  - 上述所有服务类对应的接口（如`IStatisticsService`、`IAuthService`、`IDeviceStatusService`）；
+  - 所有服务类对应的接口：
+    - `IAuthService`：认证服务接口（管理员登录、微信登录、Token 生成）
+    - `IUserService`：用户服务接口（注册、审核、角色管理）
+    - `IReservationService`：预约服务接口（创建/取消/查询/冲突检测/超时释放/暂离管理）
+    - `IStatisticsService`：统计服务接口（日/月统计、座位利用率、热门座位、用户活跃度）
+    - `IDeviceStatusService`：设备状态服务接口（设备状态获取、更新、座位映射）
+    - `INotificationService`：通知服务接口（创建通知、查询列表、未读计数、标记已读）
+    - `IWaitlistService`：候补服务接口（加入/确认/取消候补、查询状态、推进队列）
   - 接口中定义服务的核心方法签名（无具体实现，仅约定输入输出）；
-  - 可能包含接口的公共常量、枚举（如权限枚举、设备状态枚举）；
-  - 作用：解耦实现与调用、便于单元测试（Mock接口）、支持服务的多实现扩展（如不同数据源的`UserService`实现）。
+  - 作用：解耦实现与调用、便于单元测试（Mock接口）、支持服务的多实现扩展。
+
+### 补充说明
+以上是基于”服务层（Service）”通用设计逻辑的推导，实际功能需结合代码实现确认，但核心职责与文件名强关联；这类服务层通常会依赖数据访问层（如Repository）、第三方SDK（如MQTT客户端、短信服务），并向上为控制器（Controller）/API层提供业务逻辑支撑。
 
 ### 补充说明
 以上是基于“服务层（Service）”通用设计逻辑的推导，实际功能需结合代码实现确认，但核心职责与文件名强关联；这类服务层通常会依赖数据访问层（如Repository）、第三方SDK（如MQTT客户端、短信服务），并向上为控制器（Controller）/API层提供业务逻辑支撑。
 
 ## 6.Program.cs
-**核心职责**： 项目主函数，负责调用注册所有应用服务，调用函数
-所需要的注册服务：
- - 数据库上下文服务（`AppDbContext`）；
- - 数据库初始化服务（`DbInitializer`）；
- - MQTT连接服务（`MqttService`，现已停用并替换为HTTP轮询服务）；
- - OneNet设备状态轮询服务（`OneNetPollingService`）
- - 微信小程序相关服务（如`WeChatService`，处理微信登录/注册等逻辑）；
- - 其他可能的应用服务（如定时任务服务、缓存服务等）
+**核心职责**： 项目主函数，负责注册所有应用服务、中间件和初始化逻辑。
+
+### 注册的服务：
+ - **数据库上下文**：`AppDbContext`（SQL Server，连接字符串来自配置）
+ - **JWT 认证**：启动时校验 `Jwt:Key` 长度（≥16字符），配置 TokenValidationParameters（Issuer/Audience/SigningKey）
+ - **速率限制**（`AddRateLimiter`）：
+   - `AuthPolicy`：每分钟每 IP 最多 10 次（用于登录接口防暴力破解）
+   - `ReservationPolicy`：每分钟每 IP 最多 20 次（用于预约创建接口）
+ - **CORS**：从配置读取 `AllowedOrigins`（`*` 或逗号分隔域名），运行时根据值选择 `AllowAnyOrigin` 或 `WithOrigins`
+ - **设备状态**：`IDeviceStatusService`（Singleton，内存中实时维护设备状态）
+ - **后台服务**（`AddHostedService`）：
+   - `OneNetPollingService`：每 3 秒轮询 OneNet 平台设备属性
+   - `ReservationMonitorBackgroundService`：每 1 分钟执行超时释放、暂离预警、封禁解封、候补超时处理
+ - **业务服务**（Scoped）：
+   - `IAuthService` / `AuthService`
+   - `IUserService` / `UserService`
+   - `IReservationService` / `ReservationService`
+   - `IStatisticsService` / `StatisticsService`
+   - `INotificationService` / `NotificationService`
+   - `IWaitlistService` / `WaitlistService`
+ - **MQTT 服务**：已注释停用，相关类保留作参考
+ - **数据库初始化**：运行时通过 `IServiceScopeFactory` 创建作用域，调用 `DbInitializer.InitializeAsync()` 创建默认管理员
+
+### 中间件管道顺序：
+`Swagger（开发环境）` → `HttpsRedirection` → `Cors("AllowAll")` → `UseRateLimiter` → `UseAuthentication` → `UseAuthorization` → `MapControllers`
 
 ## 7.Properties
 * json配置文件
@@ -702,12 +907,15 @@ dotnet run
 
 ## 8.补充哈希值加密类Security
 ### PasswordHasher.cs
-**核心职责**：提供密码哈希加密功能，确保用户密码安全存储。
-- 典型功能：
-  - `HashPassword(string password)`：将明文密码进行哈希处理，返回哈希后的字符串（通常使用安全的哈希算法，如SHA256、BCrypt等）；
-  - `VerifyPassword(string hashedPassword, string providedPassword)`：验证提供的明文密码与存储的哈希密码是否匹配，返回验证结果（bool）；
-  - 可选功能：支持加盐（Salt）机制增强安全性，防止彩虹表攻击；支持多种哈希算法的选择。
-  - 作用：在用户注册/修改密码时调用`HashPassword`生成哈希值存储，在用户登录时调用`VerifyPassword`验证密码正确性，确保系统不存储明文密码，提升安全性。
+**核心职责**：提供密码哈希加密功能，确保用户密码安全存储。使用 **BCrypt 算法**（`BCrypt.Net-Next` NuGet 包）。
+- 核心方法：
+  - `Hash(string password)`：将明文密码进行 BCrypt 哈希处理，自动生成盐值（Salt）并嵌入哈希字符串中。空值或空白字符串会抛出 ArgumentException。
+  - `Verify(string password, string storedHash)`：验证明文密码与已存储的 BCrypt 哈希是否匹配。参数为空时直接返回 false，异常捕获后返回 false。
+- 设计特点：
+  - BCrypt 是最新一代密码哈希算法，自适应计算成本（work factor），暴力破解成本高；
+  - 每次哈希结果不同（盐值随机生成），即使相同密码也不能直接比对哈希字符串，必须使用 Verify 方法；
+  - 替代了原先的 SHA256 无盐哈希方案，有效防止彩虹表攻击。
+  - 在用户注册/修改密码时调用 `Hash()` 生成哈希值存储，在用户登录时调用 `Verify()` 验证密码正确性，确保系统不存储明文密码。
   
 
 ## 9.pages
