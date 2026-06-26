@@ -1,8 +1,9 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging; 
-using WebApplication1.Controllers;  
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Logging;
+using WebApplication1.Controllers;
 using WebApplication1.Models.DTOs.Requests;
 using WebApplication1.Services.Interfaces;
 /**
@@ -21,15 +22,18 @@ namespace WebApplication1.Controllers;
 public class ReservationController : BaseController
 {
     private readonly IReservationService _reservationService;
+    private readonly IWaitlistService _waitlistService;
     private readonly ILogger<ReservationController> _logger;
 
-    public ReservationController(IReservationService reservationService, ILogger<ReservationController> logger)
+    public ReservationController(IReservationService reservationService, IWaitlistService waitlistService, ILogger<ReservationController> logger)
     {
         _reservationService = reservationService;
+        _waitlistService = waitlistService;
         _logger = logger;
     }
 
     [HttpPost("create")]
+    [EnableRateLimiting("ReservationPolicy")]
     public async Task<IActionResult> CreateReservation([FromBody] CreateReservationRequest request)
     {
         try
@@ -78,11 +82,21 @@ public class ReservationController : BaseController
             var isAdmin = IsAdmin();
             var adminNote = isAdmin ? request?.AdminNote : null;
 
+            // 先获取预约信息（用于候补推进）
+            var reservations = await _reservationService.GetUserReservationsAsync(userId.Value);
+            var target = reservations.FirstOrDefault(r => r.Id == reservationId);
+
             var success = await _reservationService.CancelReservationAsync(reservationId, userId.Value, isAdmin, adminNote);
 
             if (!success)
             {
                 return BadRequestResponse("取消预约失败，预约不存在或无权操作");
+            }
+
+            // 取消成功后推进候补队列
+            if (target != null)
+            {
+                await _waitlistService.PromoteWaitlistAsync(target.SeatNumber, target.StartTime, target.EndTime);
             }
 
             _logger.LogInformation("取消预约成功 - 预约ID: {ReservationId}, 操作人: {UserId}, 是否管理员: {IsAdmin}",
@@ -235,18 +249,86 @@ public class ReservationController : BaseController
             return ServerErrorResponse("结束暂离失败");
         }
     }
+
+    // ========== 候补相关接口 ==========
+
+    /// <summary>加入候补队列</summary>
+    [HttpPost("join-waitlist")]
+    public async Task<IActionResult> JoinWaitlist([FromBody] CheckConflictRequest request)
+    {
+        try
+        {
+            var userId = GetUserId();
+            if (userId == null) return UnauthorizedResponse("用户未认证");
+
+            if (!ModelState.IsValid)
+                return BadRequestResponse("请求数据无效");
+
+            // 确认当前确实有冲突
+            var hasConflict = await _reservationService.CheckSeatConflictAsync(
+                request.SeatNumber, request.StartTime, request.EndTime);
+
+            if (!hasConflict)
+                return BadRequestResponse("该座位时段当前无冲突，可直接预约");
+
+            var entry = await _waitlistService.JoinWaitlistAsync(
+                userId.Value, request.SeatNumber, request.StartTime, request.EndTime);
+
+            if (entry == null)
+                return BadRequestResponse("加入候补失败，可能已在队列中");
+
+            _logger.LogInformation("用户 {UserId} 加入候补 - 座位: {SeatNumber}", userId, request.SeatNumber);
+            return OkResponse(entry, $"已加入候补队列，排在第 {entry.QueuePosition} 位");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "加入候补异常");
+            return ServerErrorResponse("加入候补失败");
+        }
+    }
+
+    /// <summary>确认候补名额</summary>
+    [HttpPost("confirm-waitlist/{waitlistId}")]
+    public async Task<IActionResult> ConfirmWaitlist(int waitlistId)
+    {
+        try
+        {
+            var userId = GetUserId();
+            if (userId == null) return UnauthorizedResponse("用户未认证");
+
+            var entry = await _waitlistService.ConfirmWaitlistAsync(waitlistId, userId.Value);
+
+            if (entry == null || entry.Status != Models.Entities.WaitlistStatus.Confirmed)
+                return BadRequestResponse("确认失败，候补可能已过期、超时或座位已被预约");
+
+            return OkResponse<object>(null, "候补确认成功，已自动创建预约");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "确认候补异常");
+            return ServerErrorResponse("确认候补失败");
+        }
+    }
+
+    /// <summary>取消候补</summary>
+    [HttpPost("cancel-waitlist/{waitlistId}")]
+    public async Task<IActionResult> CancelWaitlist(int waitlistId)
+    {
+        try
+        {
+            var userId = GetUserId();
+            if (userId == null) return UnauthorizedResponse("用户未认证");
+
+            var ok = await _waitlistService.CancelWaitlistAsync(waitlistId, userId.Value);
+            if (!ok) return BadRequestResponse("取消失败，候补不存在或状态不允许取消");
+
+            return OkResponse<object>(null, "已取消候补");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "取消候补异常");
+            return ServerErrorResponse("取消候补失败");
+        }
+    }
 }
 
-// DTOs for ReservationController
-public class CancelReservationRequest
-{
-    public string? AdminNote { get; set; }
-}
-
-public class CheckConflictRequest
-{
-    public int SeatNumber { get; set; }
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
-    public int? ExcludeReservationId { get; set; }
-}
