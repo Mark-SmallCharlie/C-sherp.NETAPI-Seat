@@ -33,10 +33,9 @@ Master --更新 6.26（代码审查 — 已知待修复问题）：
 以下为最新版本代码的自我审查缺陷，按影响程度排列，后续逐一修改。
 
 🔴 影响较大：
- * 1.【数据库迁移缺失】Program.cs 用 EnsureCreated() 而非 Migrate()，旧版数据库不会新增表/字段，运行时 SQL 报错。迁移已生成但被注释，部署前需解决。
- * 2.【密码哈希不兼容】SHA256→BCrypt 后旧用户密码全部失效无法登录，缺少兼容迁移逻辑（BCrypt 验证失败→回退 SHA256→自动升级为 BCrypt）。
- * 3.【违规衰减触发时机】GoodReservationStreak 递增写在 UpdateExpiredReservationsAsync，仅用户查预约时才调用。不查预约则永远不会标记 Completed，Streak 永远不涨。应改为后台定时任务自动触发。
- * 4.【候补确认非原子操作】ConfirmWaitlistAsync 冲突检查→创建预约之间有时间窗口，极端并发下可能被其他用户抢占。
+ * 1.【密码哈希不兼容】SHA256→BCrypt 后旧用户密码全部失效无法登录，缺少兼容迁移逻辑（BCrypt 验证失败→回退 SHA256→自动升级为 BCrypt）。
+ * 2.【违规衰减触发时机】GoodReservationStreak 递增写在 UpdateExpiredReservationsAsync，仅用户查预约时才调用。不查预约则永远不会标记 Completed，Streak 永远不涨。应改为后台定时任务自动触发。
+ * 3.【候补确认非原子操作】ConfirmWaitlistAsync 冲突检查→创建预约之间有时间窗口，极端并发下可能被其他用户抢占。
 
 🟡 影响中等：
  * 5.【暂离预警重复通知】CheckLeaveExpiringAsync 每分钟扫描一次，同一个暂离预约可能被连续发送 5 次预警通知，缺少去重标记。
