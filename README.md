@@ -28,6 +28,11 @@ Master --更新 6.26（安全加固 + 代码质量 + 功能扩展）：
 **其他优化**
  * 21. ReservationMonitorBackgroundService 轮询间隔从 5 分钟改为 1 分钟，新增 4 个子任务：超时释放、暂离预警、封禁解封、候补超时处理。
  * 22. Csproj 添加 `BCrypt.Net-Next` NuGet 包依赖。
+    
+Master --更新 7.11;
+*  1.添加硬件层.c文件；
+*  2.添加硬件层.h文件；
+*  3.上传硬件层文件；
 
 Master --更新 6.26（代码审查 — 已知待修复问题）：
 以下为最新版本代码的自我审查缺陷，按影响程度排列，后续逐一修改。
@@ -52,7 +57,7 @@ Master --更新 6.26（代码审查 — 已知待修复问题）：
  * 14.【违规衰减无通知】ViolationCount 减少时未告知用户。
 
 Master --更新 5.13：
-* 1.引入分布式锁（如基于 Redis 的 Redlock）锁住具体的 SeatNumber，
+*  1.引入分布式锁（如基于 Redis 的 Redlock）锁住具体的 SeatNumber，
 *  2.（待补充）或者在 EF Core 中对座位表添加乐观并发控制（Concurrency Token / RowVersion），确保同一时间只有一个预约能落库成功，彻底解决高并发预约冲突问题。
 Master --更新 5.8：
 *  1.实体扩展 (User.cs, Reservation.cs)：
