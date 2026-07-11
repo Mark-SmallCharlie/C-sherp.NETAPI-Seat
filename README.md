@@ -1,4 +1,10 @@
 # 更新：
+
+Master --更新 7.11;
+*  1.添加硬件层.c文件；
+*  2.添加硬件层.h文件；
+*  3.上传硬件层文件；
+
 Master --更新 6.26（安全加固 + 代码质量 + 功能扩展）：
 **安全加固（问题1-5）**
  * 1. JWT Key 与微信 AppSecret 从 appsettings.json 中移除，改用 dotnet user-secrets 存储，Program.cs 启动时校验 JWT Key 长度（≥16字符）；
@@ -29,10 +35,6 @@ Master --更新 6.26（安全加固 + 代码质量 + 功能扩展）：
  * 21. ReservationMonitorBackgroundService 轮询间隔从 5 分钟改为 1 分钟，新增 4 个子任务：超时释放、暂离预警、封禁解封、候补超时处理。
  * 22. Csproj 添加 `BCrypt.Net-Next` NuGet 包依赖。
     
-Master --更新 7.11;
-*  1.添加硬件层.c文件；
-*  2.添加硬件层.h文件；
-*  3.上传硬件层文件；
 
 Master --更新 6.26（代码审查 — 已知待修复问题）：
 以下为最新版本代码的自我审查缺陷，按影响程度排列，后续逐一修改。
