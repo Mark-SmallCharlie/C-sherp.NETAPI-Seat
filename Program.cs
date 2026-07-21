@@ -34,13 +34,23 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// JWT 认证
+// JWT 认证 — 密钥优先级：环境变量 > User Secrets > appsettings.json > 自动生成持久化密钥
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 16)
 {
-    throw new InvalidOperationException(
-        "JWT Key 未配置或长度不足（至少 16 字符）。请通过 User Secrets 或环境变量设置 Jwt:Key。\n" +
-        "  dotnet user-secrets set \"Jwt:Key\" \"<your-strong-key-at-least-16-chars>\"");
+    // 发布后的独立 exe 无法使用 User Secrets，自动生成并持久化密钥
+    var keyFile = Path.Combine(builder.Environment.ContentRootPath, "jwtkey.dat");
+    if (File.Exists(keyFile))
+    {
+        jwtKey = File.ReadAllText(keyFile).Trim();
+    }
+    else
+    {
+        jwtKey = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+                   + Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+        File.WriteAllText(keyFile, jwtKey);
+        Console.WriteLine($"[启动] 已自动生成 JWT 密钥并保存至: {keyFile}");
+    }
 }
 
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "WebApplication1API";
