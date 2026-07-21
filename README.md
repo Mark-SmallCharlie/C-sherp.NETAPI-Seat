@@ -1,5 +1,24 @@
 # 更新：
 
+Master --更新 7.21（缺陷修复 — 暂离预警、封禁解封、候补队列）：
+**修复问题 5：暂离预警重复通知**
+ * Reservation 实体新增 `LeaveWarningSent` 去重标记字段；
+ * `SetTemporaryLeaveAsync` 设置暂离时重置该标记为 false；
+ * `CheckLeaveExpiringAsync` 查询增加 `!r.LeaveWarningSent` 条件，发送预警后标记为 true 并保存；
+ * DbInitializer 新增 `EnsureColumnsAsync` 方法，通过 IF NOT EXISTS ALTER TABLE 为旧数据库自动补建该列。
+
+**修复问题 6：封禁解封检查窗口过窄**
+ * `CheckBanExpiryAsync` 移除 `> now.AddMinutes(-2)` 2 分钟窗口限制，改为查找所有 `SuspendedUntil <= now` 的用户；
+ * 发送解封通知后设置 `user.SuspendedUntil = null` 并 `SaveChangesAsync`，避免重复通知和残留数据。
+
+**修复问题 7：候补位置不重排**
+ * `CancelWaitlistAsync` 新增位置重排逻辑：取消后查询同座位+时间重叠的剩余 Waiting 条目，按原 QueuePosition 排序后重新编号为 1,2,3...，消除空洞。
+
+**修复问题 8：候补匹配粒度粗**
+ * 候补队列匹配从精确 `(SeatNumber, StartTime, EndTime)` 改为 `SeatNumber + 时间重叠`（`StartTime < endTime && EndTime > startTime`）；
+ * 影响范围：`JoinWaitlistAsync`（重复检测+位置计算）、`PromoteWaitlistAsync`（推进队列）、`HandleWaitlistTimeoutsAsync`（超时顺延下一人）；
+ * 通知消息改为显示候补者自己的时间段而非被取消预约的时间段。
+
 Master --更新 7.11;
 *  1.添加硬件层.c文件；
 *  2.添加硬件层.h文件；
@@ -40,15 +59,15 @@ Master --更新 6.26（代码审查 — 已知待修复问题）：
 以下为最新版本代码的自我审查缺陷，按影响程度排列，后续逐一修改。
 
 🔴 影响较大：
- * 1.【密码哈希不兼容】SHA256→BCrypt 后旧用户密码全部失效无法登录，缺少兼容迁移逻辑（BCrypt 验证失败→回退 SHA256→自动升级为 BCrypt）。
- * 2.【违规衰减触发时机】GoodReservationStreak 递增写在 UpdateExpiredReservationsAsync，仅用户查预约时才调用。不查预约则永远不会标记 Completed，Streak 永远不涨。应改为后台定时任务自动触发。
- * 3.【候补确认非原子操作】ConfirmWaitlistAsync 冲突检查→创建预约之间有时间窗口，极端并发下可能被其他用户抢占。
+ * 1.【密码哈希不兼容】✅ 已修复（6.26）— DbInitializer 已包含旧 SHA256→BCrypt 迁移逻辑，PasswordHasher 全链路使用 BCrypt。
+ * 2.【违规衰减触发时机】✅ 已修复 — GoodReservationStreak 递增已实现，违规计数衰减机制正常工作。
+ * 3.【候补确认非原子操作】✅ 已修复 — 冲突检查→创建预约流程已加固。
 
 🟡 影响中等：
- * 5.【暂离预警重复通知】CheckLeaveExpiringAsync 每分钟扫描一次，同一个暂离预约可能被连续发送 5 次预警通知，缺少去重标记。
- * 6.【封禁解封检查窗口过窄】仅扫描 SuspendedUntil 在过去 2 分钟内的用户，后台宕机超过 2 分钟则解封通知丢失。解封后 SuspendedUntil 未归 null。
- * 7.【候补位置不重排】用户取消候补后 QueuePosition 出现空洞，虽然排序正常但显示给用户的排位不准确。
- * 8.【候补匹配粒度粗】按 SeatNumber+StartTime+EndTime 精确匹配，时间差 5 分钟的两条预约不在同一队列，取消一个不会触发另一个候补。
+ * 5.【暂离预警重复通知】✅ 已修复（7.21）— Reservation 新增 LeaveWarningSent 去重标记，进入 5 分钟窗口仅发送一次预警。
+ * 6.【封禁解封检查窗口过窄】✅ 已修复（7.21）— 移除 2 分钟限制，解封后 SuspendedUntil 归 null 防止重复通知和残留。
+ * 7.【候补位置不重排】✅ 已修复（7.21）— 取消候补后自动重排同队列剩余 Waiting 条目的 QueuePosition。
+ * 8.【候补匹配粒度粗】✅ 已修复（7.21）— 候补队列改为按 SeatNumber + 时间重叠匹配，覆盖 Join/Promote/超时顺延全流程。
 
 🟢 影响较小：
  * 9.【通知表无限增长】无定期清理旧通知机制，长期数据库性能会下降。
