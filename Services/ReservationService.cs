@@ -271,6 +271,7 @@ public class ReservationService : IReservationService
             }
 
             reservation.LeaveEndTime = DateTime.UtcNow.AddMinutes(minutes);
+            reservation.LeaveWarningSent = false; // 重置预警标记，新暂离周期允许再次发送预警
             await _context.SaveChangesAsync();
             _logger.LogInformation("用户 {UserId} 设置了预约 {ReservationId} 暂离 {Minutes} 分钟", userId, reservationId, minutes);
             return true;
