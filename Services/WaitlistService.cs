@@ -26,24 +26,26 @@ public class WaitlistService : IWaitlistService
 
     public async Task<WaitlistEntry?> JoinWaitlistAsync(int userId, int seatNumber, DateTime startTime, DateTime endTime)
     {
-        // 检查用户是否已在该座位+时段排队
+        // 检查用户是否已在同座位+时间重叠的候补队列中（避免重复排队）
         var existing = await _context.WaitlistEntries
             .FirstOrDefaultAsync(w =>
                 w.UserId == userId
                 && w.SeatNumber == seatNumber
-                && w.StartTime == startTime
-                && w.EndTime == endTime
+                && w.StartTime < endTime
+                && w.EndTime > startTime
                 && (w.Status == WaitlistStatus.Waiting || w.Status == WaitlistStatus.Notified));
 
         if (existing != null)
         {
-            _logger.LogWarning("用户 {UserId} 已在座位 {SeatNumber} 的候补队列中", userId, seatNumber);
+            _logger.LogWarning("用户 {UserId} 已在座位 {SeatNumber} 的候补队列中（时间重叠）", userId, seatNumber);
             return null;
         }
 
-        // 计算排队位置
+        // 计算排队位置：同座位 + 时间重叠的 Waiting 条目中取最大位置
         var maxPosition = await _context.WaitlistEntries
-            .Where(w => w.SeatNumber == seatNumber && w.StartTime == startTime && w.EndTime == endTime
+            .Where(w => w.SeatNumber == seatNumber
+                && w.StartTime < endTime
+                && w.EndTime > startTime
                 && w.Status == WaitlistStatus.Waiting)
             .MaxAsync(w => (int?)w.QueuePosition) ?? 0;
 
@@ -127,10 +129,32 @@ public class WaitlistService : IWaitlistService
         if (entry == null || entry.Status == WaitlistStatus.Confirmed || entry.Status == WaitlistStatus.Expired)
             return false;
 
+        var seatNumber = entry.SeatNumber;
+        var startTime = entry.StartTime;
+        var endTime = entry.EndTime;
+
         entry.Status = WaitlistStatus.Cancelled;
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("用户 {UserId} 取消了候补 - WaitlistId: {Id}, 座位: {SeatNumber}", userId, waitlistId, entry.SeatNumber);
+        // 重排同座位+时间重叠的剩余候补位置，消除空洞
+        var remaining = await _context.WaitlistEntries
+            .Where(w => w.SeatNumber == seatNumber
+                && w.StartTime < endTime
+                && w.EndTime > startTime
+                && w.Status == WaitlistStatus.Waiting)
+            .OrderBy(w => w.QueuePosition)
+            .ToListAsync();
+
+        for (int i = 0; i < remaining.Count; i++)
+        {
+            remaining[i].QueuePosition = i + 1;
+        }
+
+        if (remaining.Count > 0)
+            await _context.SaveChangesAsync();
+
+        _logger.LogInformation("用户 {UserId} 取消了候补 - WaitlistId: {Id}, 座位: {SeatNumber}, 已重排 {Count} 个位置",
+            userId, waitlistId, seatNumber, remaining.Count);
         return true;
     }
 
@@ -148,13 +172,13 @@ public class WaitlistService : IWaitlistService
 
     public async Task PromoteWaitlistAsync(int seatNumber, DateTime startTime, DateTime endTime)
     {
-        // 找到该座位+时段下第一个 Waiting 状态的候补者
+        // 找到同座位+时间重叠的第一个 Waiting 状态候补者
         var firstInLine = await _context.WaitlistEntries
             .OrderBy(w => w.QueuePosition)
             .FirstOrDefaultAsync(w =>
                 w.SeatNumber == seatNumber
-                && w.StartTime == startTime
-                && w.EndTime == endTime
+                && w.StartTime < endTime
+                && w.EndTime > startTime
                 && w.Status == WaitlistStatus.Waiting);
 
         if (firstInLine == null)
@@ -173,7 +197,7 @@ public class WaitlistService : IWaitlistService
         await _notificationService.CreateNotificationAsync(
             firstInLine.UserId,
             "候补名额可用",
-            $"您候补的座位 {seatNumber}（{startTime:yyyy-MM-dd HH:mm} 至 {endTime:yyyy-MM-dd HH:mm}）现有名额可用，请在 15 分钟内确认，超时将顺延至下一位。",
+            $"您候补的座位 {seatNumber}（{firstInLine.StartTime:yyyy-MM-dd HH:mm} 至 {firstInLine.EndTime:yyyy-MM-dd HH:mm}）现有名额可用，请在 15 分钟内确认，超时将顺延至下一位。",
             NotificationType.WaitlistAvailable,
             null);
 
