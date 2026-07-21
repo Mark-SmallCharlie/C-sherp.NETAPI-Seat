@@ -12,7 +12,18 @@
 	<CetCompat>false</CetCompat>
 	<EnableCetCompat>false</EnableCetCompat>
 	<WindowsEnableCetCompat>false</WindowsEnableCetCompat>
+    <!-- 单文件发布配置 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
+
+  <!-- 发布时排除 appsettings.json 保留为外部文件，方便修改配置 -->
+  <ItemGroup>
+    <Content Update="appsettings.json" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
