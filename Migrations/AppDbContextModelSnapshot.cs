@@ -7,11 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebApplication1.Data;
 
 #nullable disable
-/***
- ModelSnapshot类是Entity Framework Core用于存储数据库模型快照的类。
-它记录了当前数据库模型的状态，以便在生成新的Migration时进行比较。
-此类用于跟踪数据库模式的变化。
- */
+
 namespace WebApplication1.Migrations
 {
     [DbContext(typeof(AppDbContext))]
@@ -58,17 +54,46 @@ namespace WebApplication1.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AdminUsers");
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreatedAt = new DateTime(2026, 4, 5, 14, 50, 25, 495, DateTimeKind.Utc).AddTicks(9928),
-                            DisplayName = "系统管理员",
-                            IsActive = true,
-                            PasswordHash = "240BE518FABD2724DDB6F04EEB1DA5967448D7E831C08C8FA822809F74C720A9",
-                            Username = "admin"
-                        });
+            modelBuilder.Entity("WebApplication1.Models.Entities.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("RelatedReservationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("WebApplication1.Models.Entities.Reservation", b =>
@@ -87,6 +112,12 @@ namespace WebApplication1.Migrations
 
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LeaveEndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("LeaveWarningSent")
+                        .HasColumnType("bit");
 
                     b.Property<int>("SeatNumber")
                         .HasColumnType("int");
@@ -146,6 +177,9 @@ namespace WebApplication1.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("GoodReservationStreak")
+                        .HasColumnType("int");
+
                     b.Property<string>("NickName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -157,10 +191,16 @@ namespace WebApplication1.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("PasswordHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("SuspendedUntil")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ViolationCount")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -171,10 +211,74 @@ namespace WebApplication1.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("WebApplication1.Models.Entities.WaitlistEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ConfirmDeadline")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("NotifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("QueuePosition")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SeatNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("WaitlistEntries");
+                });
+
+            modelBuilder.Entity("WebApplication1.Models.Entities.Notification", b =>
+                {
+                    b.HasOne("WebApplication1.Models.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("WebApplication1.Models.Entities.Reservation", b =>
                 {
                     b.HasOne("WebApplication1.Models.Entities.User", "User")
                         .WithMany("Reservations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("WebApplication1.Models.Entities.WaitlistEntry", b =>
+                {
+                    b.HasOne("WebApplication1.Models.Entities.User", "User")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
