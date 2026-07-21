@@ -60,7 +60,7 @@ namespace WebApplication1.Services
             }
         }
 
-        /// <summary>暂离即将超时预警（剩余 5 分钟内）</summary>
+        /// <summary>暂离即将超时预警（剩余 5 分钟内），同一暂离周期只发一次</summary>
         private async Task CheckLeaveExpiringAsync(AppDbContext dbContext, INotificationService notificationService)
         {
             try
@@ -73,7 +73,8 @@ namespace WebApplication1.Services
                     .Where(r => r.Status == ReservationStatus.Active
                         && r.LeaveEndTime.HasValue
                         && r.LeaveEndTime.Value > now
-                        && r.LeaveEndTime.Value <= warningThreshold)
+                        && r.LeaveEndTime.Value <= warningThreshold
+                        && !r.LeaveWarningSent)
                     .ToListAsync();
 
                 foreach (var reservation in expiringReservations)
@@ -89,7 +90,15 @@ namespace WebApplication1.Services
                             $"您的座位 {reservation.SeatNumber} 暂离时间还剩不到5分钟，请尽快返回座位，以免被自动释放。",
                             NotificationType.TimeoutWarning,
                             reservation.Id);
+
+                        // 标记已发送，防止同一暂离周期重复通知
+                        reservation.LeaveWarningSent = true;
                     }
+                }
+
+                if (expiringReservations.Count > 0)
+                {
+                    await dbContext.SaveChangesAsync();
                 }
             }
             catch (Exception ex)
@@ -98,18 +107,17 @@ namespace WebApplication1.Services
             }
         }
 
-        /// <summary>检查封禁到期并通知用户</summary>
+        /// <summary>检查封禁到期并通知用户，解封后清除 SuspendedUntil 防止重复通知</summary>
         private async Task CheckBanExpiryAsync(AppDbContext dbContext, INotificationService notificationService)
         {
             try
             {
                 var now = DateTime.UtcNow;
 
-                // 查找封禁刚刚到期的用户（SuspendedUntil 在过去但用户仍处于封禁状态）
+                // 查找所有封禁已到期的用户（不再限制回溯窗口，避免宕机导致通知丢失）
                 var recentlyUnbanned = await dbContext.Users
                     .Where(u => u.SuspendedUntil.HasValue
-                        && u.SuspendedUntil.Value <= now
-                        && u.SuspendedUntil.Value > now.AddMinutes(-2))
+                        && u.SuspendedUntil.Value <= now)
                     .ToListAsync();
 
                 foreach (var user in recentlyUnbanned)
@@ -121,6 +129,14 @@ namespace WebApplication1.Services
                         "预约权限已恢复",
                         "您的预约权限冻结期已结束，现在可以正常预约座位了。请珍惜预约机会，按时就座。",
                         NotificationType.BanExpired);
+
+                    // 清除封禁标记，防止下次扫描重复通知
+                    user.SuspendedUntil = null;
+                }
+
+                if (recentlyUnbanned.Count > 0)
+                {
+                    await dbContext.SaveChangesAsync();
                 }
             }
             catch (Exception ex)
@@ -155,13 +171,13 @@ namespace WebApplication1.Services
                         $"您对座位 {entry.SeatNumber} 的候补确认已超时，名额已释放给下一位候补者。",
                         NotificationType.SystemMessage);
 
-                    // 通知下一位候补者
+                    // 通知下一位候补者（同座位+时间重叠）
                     var nextEntry = await dbContext.WaitlistEntries
                         .OrderBy(w => w.QueuePosition)
                         .FirstOrDefaultAsync(w =>
                             w.SeatNumber == entry.SeatNumber
-                            && w.StartTime == entry.StartTime
-                            && w.EndTime == entry.EndTime
+                            && w.StartTime < entry.EndTime
+                            && w.EndTime > entry.StartTime
                             && w.Status == WaitlistStatus.Waiting
                             && w.Id != entry.Id);
 
